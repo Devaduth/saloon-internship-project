@@ -102,8 +102,14 @@ const StylistList = () => {
         },
       });
     } catch (error) {
-      const message = error?.response?.data?.message || 'Unable to select this stylist right now.';
-      toast.error(message);
+      const message = error?.response?.data?.message || error?.message || 'Unable to select this stylist right now.';
+      const statusCode = error?.response?.status || 'unknown';
+      console.error('Stylist selection error:', {
+        status: statusCode,
+        message,
+        fullError: error?.response?.data || error,
+      });
+      toast.error(`${message} (${statusCode})`);
     } finally {
       setLoadingStylistId('');
     }
