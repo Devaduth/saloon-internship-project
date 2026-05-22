@@ -4,3 +4,8 @@ export const createAppointment = async (payload) => {
   const response = await apiClient.post('/appointments', payload);
   return response.data;
 };
+
+export const updateAppointment = async (appointmentId, payload) => {
+  const response = await apiClient.put(`/appointments/${appointmentId}`, payload);
+  return response.data;
+};

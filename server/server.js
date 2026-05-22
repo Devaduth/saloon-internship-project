@@ -4,6 +4,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import appointmentRoutes from './routes/appointmentRoutes.js';
+import stylistRoutes from './routes/stylistRoutes.js';
 import { connectDB } from './config/db.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
@@ -24,6 +25,7 @@ app.get('/api/health', (_request, response) => {
 });
 
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/stylists', stylistRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
