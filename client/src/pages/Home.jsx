@@ -16,7 +16,10 @@ const Home = () => {
 
   const handleCategoryClick = (category) => {
     setSelectedCategory(category.name);
-    navigate('/subcategories', { state: { category: category.name } });
+  };
+
+  const handleSelectStylist = () => {
+    navigate('/stylists', { state: { category: selectedCategory } });
   };
 
   return (
@@ -50,8 +53,8 @@ const Home = () => {
               <div className="section-heading">Categories</div>
               <div className="section-subheading">Choose a service type to continue</div>
             </div>
-            <button type="button" className="text-link" onClick={() => navigate('/subcategories')}>
-              View all
+            <button type="button" className="text-link" onClick={handleSelectStylist}>
+              Select Stylist
             </button>
           </div>
 
@@ -77,7 +80,7 @@ const Home = () => {
               <div className="section-heading section-heading--tight">popular in your city</div>
               <div className="section-subheading">Horizontal cards on mobile, grid on larger screens</div>
             </div>
-            <button type="button" className="text-link" onClick={() => navigate('/subcategories')}>
+            <button type="button" className="text-link" onClick={handleSelectStylist}>
               View all
             </button>
           </div>

@@ -7,7 +7,22 @@ const appointmentSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    appointment_id: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    appointment_date_time: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     stylist_id: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    customer_address: {
       type: String,
       trim: true,
       default: '',
@@ -53,6 +68,10 @@ const appointmentSchema = new mongoose.Schema(
             type: String,
             default: '',
           },
+          service_name: {
+            type: String,
+            default: '',
+          },
           duration: {
             type: String,
             default: '',
@@ -64,6 +83,15 @@ const appointmentSchema = new mongoose.Schema(
         },
       ],
       default: [],
+    },
+    total_price: {
+      type: Number,
+      default: 0,
+    },
+    total_duration: {
+      type: String,
+      trim: true,
+      default: '',
     },
     created_by: {
       type: String,

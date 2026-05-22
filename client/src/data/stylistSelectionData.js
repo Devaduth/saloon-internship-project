@@ -19,6 +19,7 @@ export const selectionStylists = [
     name: 'Rahul',
     specialization: 'Hair cut, Herbal facial',
     experience: 4,
+    phone: '+91 98765 43210',
     image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=600&q=80',
     certifications: [
       'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=600&q=80',
@@ -54,6 +55,7 @@ export const selectionStylists = [
     name: 'Meera',
     specialization: 'Bridal styling, skin glow facial',
     experience: 6,
+    phone: '+91 98765 43211',
     image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=600&q=80',
     certifications: [
       'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=600&q=80',
@@ -89,6 +91,7 @@ export const selectionStylists = [
     name: 'Abdullah',
     specialization: 'Beard trim, men styling',
     experience: 5,
+    phone: '+91 98765 43212',
     image: 'https://images.unsplash.com/photo-1507591064344-4c6ce005b128?auto=format&fit=crop&w=600&q=80',
     certifications: [
       'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',

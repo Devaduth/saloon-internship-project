@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import BottomNavbar from '../components/BottomNavbar';
+import BranchInfo from '../components/BranchInfo';
 import MobileHeader from '../components/MobileHeader';
 import StylistCard from '../components/StylistCard';
-import SubcategoryCard from '../components/SubcategoryCard';
 import TopNavbar from '../components/TopNavbar';
 import { createAppointment } from '../services/appointmentService';
-import { subcategories, stylists } from '../data/salonUiData';
+import { branchInfo, selectionStylists } from '../data/stylistSelectionData';
 
 const defaultBranchState = {
   branch_id: 'branch-pusan',
@@ -22,20 +22,31 @@ const StylistList = () => {
   const selectedCategory = location.state?.category || 'Men';
   const customerId = location.state?.customer_id || localStorage.getItem('userId') || 'guest-user';
   const createdBy = location.state?.created_by || customerId;
-  const [selectedSubcategory, setSelectedSubcategory] = useState(location.state?.subcategory || subcategories[0].title);
-  const [loading, setLoading] = useState(false);
+  const [selectedStylistId, setSelectedStylistId] = useState(location.state?.stylist_id || '');
+  const [loadingStylistId, setLoadingStylistId] = useState('');
   const [offlineError, setOfflineError] = useState(false);
 
+  const availableStylists = useMemo(() => {
+    const matchedStylists = selectionStylists.filter(
+      (stylist) => stylist.status === 'AA' && stylist.category?.toLowerCase() === selectedCategory.toLowerCase()
+    );
+
+    return matchedStylists.length ? matchedStylists : selectionStylists.filter((stylist) => stylist.status === 'AA');
+  }, [selectedCategory]);
+
   useEffect(() => {
-    setSelectedSubcategory(location.state?.subcategory || subcategories[0].title);
-  }, [location.state?.subcategory]);
+    if (!availableStylists.length) {
+      return;
+    }
 
-  const selectedSubcategoryItem = useMemo(
-    () => subcategories.find((subcategory) => subcategory.title === selectedSubcategory) || subcategories[0],
-    [selectedSubcategory]
-  );
+    const hasSelectedStylist = availableStylists.some((stylist) => stylist.id === selectedStylistId);
 
-  const handleContinue = async () => {
+    if (!hasSelectedStylist) {
+      setSelectedStylistId(availableStylists[0].id);
+    }
+  }, [availableStylists, selectedStylistId]);
+
+  const handleSelectStylist = async (stylist) => {
     if (!navigator.onLine) {
       setOfflineError(true);
       toast.error('Mobile not connected to internet');
@@ -43,39 +54,47 @@ const StylistList = () => {
     }
 
     try {
-      setLoading(true);
+      setLoadingStylistId(stylist.id);
       setOfflineError(false);
+      setSelectedStylistId(stylist.id);
 
       const appointment = await createAppointment({
         customer_id: customerId,
         main_category: selectedCategory,
-        sub_category: selectedSubcategory,
+        sub_category: stylist.subcategory || '',
+        stylist_id: stylist.id,
         created_by: createdBy,
         modified_by: createdBy,
         ...defaultBranchState,
+        branch_id: stylist.branch_id || defaultBranchState.branch_id,
+        city_id: stylist.city_id || defaultBranchState.city_id,
+        area_id: stylist.area_id || defaultBranchState.area_id,
+        state_id: stylist.state_id || defaultBranchState.state_id,
       });
 
-      navigate('/stylists', {
+      navigate('/services', {
         state: {
           appointment_id: appointment?.data?._id,
           customer_id: customerId,
-          stylist_id: appointment?.data?.stylist_id || '',
-          branch_id: defaultBranchState.branch_id,
-          city_id: defaultBranchState.city_id,
-          area_id: defaultBranchState.area_id,
-          state_id: defaultBranchState.state_id,
+          stylist_id: stylist.id,
+          branch_id: stylist.branch_id || defaultBranchState.branch_id,
+          city_id: stylist.city_id || defaultBranchState.city_id,
+          area_id: stylist.area_id || defaultBranchState.area_id,
+          state_id: stylist.state_id || defaultBranchState.state_id,
           created_by: createdBy,
           category: selectedCategory,
-          subcategory: selectedSubcategory,
+          subcategory: stylist.subcategory || '',
         },
       });
     } catch (error) {
-      const message = error?.response?.data?.message || 'Unable to continue right now.';
+      const message = error?.response?.data?.message || 'Unable to select this stylist right now.';
       toast.error(message);
     } finally {
-      setLoading(false);
+      setLoadingStylistId('');
     }
   };
+
+  const activeStylist = availableStylists.find((stylist) => stylist.id === selectedStylistId) || availableStylists[0] || null;
 
   return (
     <div className="site-shell site-shell--subcategories">
@@ -83,80 +102,54 @@ const StylistList = () => {
 
       <main className="page-main page-main--subcategory">
         <section className="mobile-header mobile-header--mobile-only">
-          <MobileHeader title="subcategories" showBack centerTitle onBack={() => navigate(-1)} />
+          <MobileHeader title="Stylists" showBack centerTitle onBack={() => navigate(-1)} />
         </section>
 
         <section className="page-hero page-hero--subcategory">
           <div className="page-hero__content">
-            <div className="page-kicker">Selected category</div>
-            <h1>Explore services for {selectedCategory}</h1>
-            <p>Discover curated services and stylist recommendations in a responsive grid layout.</p>
+            <div className="page-kicker">Stylist selection</div>
+            <h1>Choose a stylist for {selectedCategory}</h1>
+            <p>Pick one stylist to create the booking draft and continue to the services page.</p>
             <div className="selection-chip-row">
-              {subcategories.map((subcategory) => (
-                <button
-                  key={subcategory.title}
-                  type="button"
-                  className={`selection-chip ${selectedSubcategory === subcategory.title ? 'active' : ''}`}
-                  onClick={() => setSelectedSubcategory(subcategory.title)}
-                >
-                  {subcategory.title}
-                </button>
-              ))}
+              <span className="selection-chip selection-chip--static">{selectedCategory}</span>
             </div>
           </div>
 
-          <div className="page-hero__panel page-hero__panel--compact">
-            <div className="members-pill">200 members are on same categories</div>
+          <div className="page-hero__panel page-hero__panel--selection">
+            <BranchInfo branch={branchInfo} />
           </div>
         </section>
 
-        <section className="page-section page-section--subcategories">
-          <div className="subcategories-grid subcategories-grid-responsive">
-            {subcategories.map((subcategory) => (
-              <SubcategoryCard
-                key={subcategory.title}
-                subcategory={subcategory}
-                selected={selectedSubcategory === subcategory.title}
-                onClick={() => setSelectedSubcategory(subcategory.title)}
-              />
-            ))}
-          </div>
-
-          <div className="continue-selection-card">
+        {offlineError ? (
+          <div className="connection-banner connection-banner--inline">
             <div>
-              <span>Selected subcategory</span>
-              <strong>{selectedSubcategoryItem.title}</strong>
+              <strong>Mobile not connected to internet</strong>
+              <span>Reconnect before selecting a stylist to continue booking.</span>
             </div>
-            <button type="button" className="continue-button" onClick={handleContinue} disabled={loading}>
-              {loading ? 'Saving...' : 'Choose Stylists'}
+            <button type="button" className="connection-banner__retry" onClick={() => setOfflineError(false)}>
+              Retry
             </button>
           </div>
-
-          {offlineError ? (
-            <div className="connection-banner">
-              <div>
-                <strong>Mobile not connected to internet</strong>
-                <span>Retry after reconnecting to continue booking.</span>
-              </div>
-              <button type="button" className="connection-banner__retry" onClick={handleContinue}>
-                Retry
-              </button>
-            </div>
-          ) : null}
-        </section>
+        ) : null}
 
         <section className="page-section page-section--stylists">
           <div className="section-header-row section-header-row--wide">
             <div>
-              <div className="section-heading section-heading--tight">top stylish in this categories</div>
-              <div className="section-subheading">Same stylist cards, expanded for desktop</div>
+              <div className="section-heading section-heading--tight">Available stylists</div>
+              <div className="section-subheading">Select one stylist to move into services and booking</div>
             </div>
-            <button type="button" className="text-link" onClick={() => navigate('/')}>View all</button>
+            <button type="button" className="text-link" onClick={() => navigate('/')}>Change category</button>
           </div>
 
-          <div className="stylist-grid-responsive stylist-grid-responsive--compact">
-            {stylists.map((stylist) => (
-              <StylistCard key={stylist.name} stylist={stylist} compact />
+          <div className="selection-stylists-grid">
+            {availableStylists.map((stylist) => (
+              <StylistCard
+                key={stylist.id}
+                stylist={stylist}
+                selected={selectedStylistId === stylist.id}
+                loading={loadingStylistId === stylist.id}
+                onSelect={handleSelectStylist}
+              />
             ))}
           </div>
         </section>

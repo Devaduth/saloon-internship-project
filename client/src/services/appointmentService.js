@@ -5,6 +5,11 @@ export const createAppointment = async (payload) => {
   return response.data;
 };
 
+export const getAppointmentById = async (appointmentId) => {
+  const response = await apiClient.get(`/appointments/${appointmentId}`);
+  return response.data;
+};
+
 export const updateAppointment = async (appointmentId, payload) => {
   const response = await apiClient.put(`/appointments/${appointmentId}`, payload);
   return response.data;

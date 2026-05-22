@@ -2,6 +2,7 @@ const StylistCard = ({
   stylist,
   compact = false,
   selected = false,
+  loading = false,
   onSelect,
   onViewMore,
   onCertifications,
@@ -51,8 +52,8 @@ const StylistCard = ({
         <p className="stylist-card__summary">{stylist.bio || 'Professional stylist available for booking and service selection.'}</p>
 
         <div className="stylist-card__detail-actions">
-          <button type="button" className="stylist-card__primary-action" onClick={() => onSelect?.(stylist)}>
-            {selected ? 'Selected' : 'Select Stylist'}
+          <button type="button" className="stylist-card__primary-action" onClick={() => onSelect?.(stylist)} disabled={loading}>
+            {loading ? 'Selecting...' : selected ? 'Selected' : 'Select Stylist'}
           </button>
           <button type="button" className="stylist-card__secondary-action" onClick={() => onViewMore?.(stylist)}>
             View More
