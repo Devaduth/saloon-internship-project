@@ -8,6 +8,7 @@ import StylistCard from '../components/StylistCard';
 import TopNavbar from '../components/TopNavbar';
 import { createAppointment } from '../services/appointmentService';
 import { branchInfo, selectionStylists } from '../data/stylistSelectionData';
+import { getCustomerId } from '../utils/customerIdentity';
 
 const defaultBranchState = {
   branch_id: 'branch-pusan',
@@ -16,11 +17,25 @@ const defaultBranchState = {
   state_id: 'state-karnataka',
 };
 
+const getGuestCustomerId = () => {
+  const storageKey = 'salonGuestCustomerId';
+  const existingGuestId = localStorage.getItem(storageKey);
+
+  if (existingGuestId) {
+    return existingGuestId;
+  }
+
+  const generatedGuestId = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  localStorage.setItem(storageKey, generatedGuestId);
+
+  return generatedGuestId;
+};
+
 const StylistList = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const selectedCategory = location.state?.category || 'Men';
-  const customerId = location.state?.customer_id || localStorage.getItem('userId') || 'guest-user';
+  const customerId = getCustomerId(location.state?.customer_id || '');
   const createdBy = location.state?.created_by || customerId;
   const [selectedStylistId, setSelectedStylistId] = useState(location.state?.stylist_id || '');
   const [loadingStylistId, setLoadingStylistId] = useState('');

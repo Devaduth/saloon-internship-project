@@ -9,6 +9,7 @@ import ServiceSelection from '../components/ServiceSelection';
 import TopNavbar from '../components/TopNavbar';
 import { brands, branchInfo, selectionStylists } from '../data/stylistSelectionData';
 import { updateAppointmentStylist } from '../services/stylistService';
+import { getCustomerId } from '../utils/customerIdentity';
 
 const StylistSelection = () => {
   const location = useLocation();
@@ -17,7 +18,7 @@ const StylistSelection = () => {
   const selectedCategory = location.state?.category || 'Men';
   const selectedSubcategory = location.state?.subcategory || 'Hair care';
   const appointmentId = location.state?.appointment_id || '';
-  const customerId = location.state?.customer_id || localStorage.getItem('userId') || 'guest-user';
+  const customerId = getCustomerId(location.state?.customer_id || '');
   const createdBy = location.state?.created_by || customerId;
 
   const [activeStylistId, setActiveStylistId] = useState(location.state?.stylist_id || '');

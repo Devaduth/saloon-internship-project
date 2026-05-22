@@ -13,6 +13,7 @@ import StylistInfoCard from '../components/StylistInfoCard';
 import TopNavbar from '../components/TopNavbar';
 import { getAppointmentById, updateAppointment } from '../services/appointmentService';
 import { getStylistDetails } from '../services/stylistService';
+import { getCustomerId } from '../utils/customerIdentity';
 
 const todayInputValue = () => {
   const today = new Date();
@@ -98,7 +99,7 @@ const AppointmentConfirmation = () => {
   const navigate = useNavigate();
 
   const appointmentId = location.state?.appointment_id || '';
-  const customerId = location.state?.customer_id || localStorage.getItem('userId') || 'guest-user';
+  const customerId = getCustomerId(location.state?.customer_id || '');
   const createdBy = location.state?.created_by || customerId;
 
   const [loading, setLoading] = useState(true);
