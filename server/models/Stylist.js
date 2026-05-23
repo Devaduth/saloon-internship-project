@@ -67,6 +67,11 @@ const stylistSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
+    salon_id: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     city_id: {
       type: String,
       trim: true,

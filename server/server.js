@@ -4,7 +4,10 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import appointmentRoutes from './routes/appointmentRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 import stylistRoutes from './routes/stylistRoutes.js';
+import salonRoutes from './routes/salonRoutes.js';
+import bookingRoutes from './routes/bookingRoutes.js';
 import { connectDB } from './config/db.js';
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
@@ -19,6 +22,15 @@ const allowedOrigins = new Set(
     .map((origin) => origin.replace(/\/$/, ''))
 );
 
+const isLocalhostOrigin = (origin = '') => {
+  try {
+    const parsedOrigin = new URL(origin);
+    return ['localhost', '127.0.0.1'].includes(parsedOrigin.hostname);
+  } catch {
+    return false;
+  }
+};
+
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) {
@@ -28,6 +40,10 @@ const corsOptions = {
     const normalizedOrigin = origin.replace(/\/$/, '');
 
     if (allowedOrigins.has(normalizedOrigin)) {
+      return callback(null, true);
+    }
+
+    if (isLocalhostOrigin(normalizedOrigin)) {
       return callback(null, true);
     }
 
@@ -48,7 +64,10 @@ app.get('/api/health', (_request, response) => {
 });
 
 app.use('/api/appointments', appointmentRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/stylists', stylistRoutes);
+app.use('/api/salons', salonRoutes);
+app.use('/api/bookings', bookingRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

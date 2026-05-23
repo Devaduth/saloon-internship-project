@@ -6,6 +6,7 @@ import ChatModal from '../components/ChatModal';
 import ConfirmBookingButton from '../components/ConfirmBookingButton';
 import ContactActions from '../components/ContactActions';
 import DateTimePicker from '../components/DateTimePicker';
+import PremiumBooking from '../components/PremiumBooking';
 import MobileHeader from '../components/MobileHeader';
 import PriceSummary from '../components/PriceSummary';
 import ServiceList from '../components/ServiceList';
@@ -86,6 +87,38 @@ const formatMinutes = (minutes = 0) => {
   return `${hours} hour${hours === 1 ? '' : 's'} ${remainingMinutes} min`;
 };
 
+const buildDateTimeFromParts = (dateValue = '', timeValue = '') => {
+  if (!dateValue || !timeValue) {
+    return null;
+  }
+
+  const [timePart, meridiemPart] = String(timeValue).trim().split(' ');
+  const [hoursPart, minutesPart = '00'] = timePart.split(':');
+  let hours = Number.parseInt(hoursPart, 10);
+  const minutes = Number.parseInt(minutesPart, 10);
+  const meridiem = String(meridiemPart || '').toUpperCase();
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return null;
+  }
+
+  if (meridiem === 'PM' && hours < 12) {
+    hours += 12;
+  }
+
+  if (meridiem === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  const combinedValue = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(combinedValue.getTime())) {
+    return null;
+  }
+
+  combinedValue.setHours(hours, minutes, 0, 0);
+  return combinedValue;
+};
+
 const normalizeService = (service) => ({
   id: service?.id || service?.service_id || service?.name || service?.service_name || '',
   name: service?.name || service?.service_name || '',
@@ -111,7 +144,8 @@ const AppointmentConfirmation = () => {
   );
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
-  const [customerAddress, setCustomerAddress] = useState(location.state?.customer_address || localStorage.getItem('salonCustomerAddress') || '');
+  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [customerAddress, setCustomerAddress] = useState('');
   const [addressEditing, setAddressEditing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
@@ -149,11 +183,10 @@ const AppointmentConfirmation = () => {
           const splitValue = splitDateTime(appointmentData.appointment_date_time);
           setAppointmentDate(splitValue.date);
           setAppointmentTime(splitValue.time);
+          setSelectedSlot({ date: splitValue.date, start_time: splitValue.time, end_time: '' });
         }
 
-        if (appointmentData?.customer_address) {
-          setCustomerAddress(appointmentData.customer_address);
-        }
+        // salon flow: customer address is no longer required
 
         const stylistId = appointmentData?.stylist_id || location.state?.stylist_id || '';
         if (stylistId) {
@@ -201,20 +234,12 @@ const AppointmentConfirmation = () => {
   const city = stylist?.city || location.state?.city_id || appointment?.city_id || 'Bangalore';
 
   const buildDateTime = () => {
-    if (!appointmentDate || !appointmentTime) {
-      return null;
-    }
-
-    const combinedValue = new Date(`${appointmentDate}T${appointmentTime}`);
-    return Number.isNaN(combinedValue.getTime()) ? null : combinedValue;
+    return buildDateTimeFromParts(appointmentDate, appointmentTime);
   };
 
   const handleSaveAddress = () => {
-    const trimmedAddress = customerAddress.trim();
-    setCustomerAddress(trimmedAddress);
-    localStorage.setItem('salonCustomerAddress', trimmedAddress);
+    // no-op: address not required in salon booking flow
     setAddressEditing(false);
-    toast.success('Address updated successfully.');
   };
 
   const handleCallStylist = () => {
@@ -254,31 +279,38 @@ const AppointmentConfirmation = () => {
     try {
       setSaving(true);
 
-      const payload = {
-        appointment_date_time: dateTimeValue.toISOString(),
-        customer_address: customerAddress.trim(),
-        selected_services: normalizedServices,
-        total_price: totalPrice,
-        total_duration: totalDuration,
-        modified_by: createdBy,
-        status: 'IA',
-        stylist_id: stylist?.id || location.state?.stylist_id || appointment?.stylist_id || '',
-        branch_id: stylist?.branch_id || location.state?.branch_id || appointment?.branch_id || '',
-        city_id: stylist?.city_id || location.state?.city_id || appointment?.city_id || '',
-        area_id: stylist?.area_id || location.state?.area_id || appointment?.area_id || '',
-        state_id: stylist?.state_id || location.state?.state_id || appointment?.state_id || '',
-      };
+        const payload = {
+          salon_id: appointment?.branch_id || stylist?.branch_id || location.state?.branch_id || '',
+          stylist_id: stylist?.id || location.state?.stylist_id || appointment?.stylist_id || '',
+          booking_date: appointmentDate,
+          booking_slot: appointmentTime,
+          service_ids: normalizedServices.map((s) => s.id).filter(Boolean),
+          selected_services: normalizedServices,
+          total_price: totalPrice,
+          total_duration: totalDuration,
+          modified_by: createdBy,
+          booking_status: 'PENDING',
+        };
 
       const response = await updateAppointment(appointmentId, payload);
       setAppointment(response?.data || appointment);
-      setSuccessMessage('You have successfully sent a request to Stylist.');
-      toast.success('You have successfully sent a request to Stylist.');
+      setSuccessMessage('You have successfully booked the appointment.');
+      toast.success('You have successfully booked the appointment.');
     } catch (error) {
       const message = error?.response?.data?.message || 'Unable to confirm the appointment right now.';
       toast.error(message);
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleRemoveService = (service) => {
+    const key = service?.id || service?.name || service?.service_name || '';
+
+    setSelectedServices((prev) => prev.filter((s) => {
+      const sKey = s?.id || s?.name || s?.service_name || '';
+      return sKey !== key;
+    }));
   };
 
   return (
@@ -295,8 +327,8 @@ const AppointmentConfirmation = () => {
         <section className="page-hero page-hero--booking">
           <div className="page-hero__content">
             <div className="page-kicker">Cart and appointment confirmation</div>
-            <h1>Service Request</h1>
-            <p>Review your stylist, selected services, appointment date and time, then send the request to confirm booking.</p>
+            <h1>Book Appointment</h1>
+            <p>Review your stylist, selected services, appointment date and time, then book the appointment.</p>
 
             {successMessage ? <div className="booking-success-banner">{successMessage}</div> : null}
           </div>
@@ -308,28 +340,7 @@ const AppointmentConfirmation = () => {
 
         <section className="booking-layout">
           <div className="booking-layout__main">
-            <article className="booking-card booking-card--address">
-              <div className="booking-address-card__header">
-                <div>
-                  <div className="section-heading">Service Address</div>
-                  <div className="section-subheading">Edit the customer address before sending the request</div>
-                </div>
-                <button type="button" className="text-link text-link--accent" onClick={() => (addressEditing ? handleSaveAddress() : setAddressEditing(true))}>
-                  {addressEditing ? 'Save Address' : 'Change Address'}
-                </button>
-              </div>
-
-              <div className="booking-address-card__body">
-                {addressEditing ? (
-                  <label className="booking-field booking-field--full">
-                    <span>Customer Address</span>
-                    <textarea rows="4" value={customerAddress} onChange={(event) => setCustomerAddress(event.target.value)} placeholder="Enter customer address" />
-                  </label>
-                ) : (
-                  <div className="booking-address-display">{customerAddress || 'No address added yet.'}</div>
-                )}
-              </div>
-            </article>
+            {/* Address removed for salon booking flow */}
 
             <article className="booking-card">
               <div className="section-header-row section-header-row--wide">
@@ -362,7 +373,7 @@ const AppointmentConfirmation = () => {
                 </button>
               </div>
 
-              <ServiceList services={normalizedServices} />
+              <ServiceList services={normalizedServices} onRemove={handleRemoveService} />
             </article>
 
             <article className="booking-card">
@@ -373,12 +384,16 @@ const AppointmentConfirmation = () => {
                 </div>
               </div>
 
-              <DateTimePicker
-                appointmentDate={appointmentDate}
-                appointmentTime={appointmentTime}
-                minDate={minDate}
-                onDateChange={setAppointmentDate}
-                onTimeChange={setAppointmentTime}
+              <PremiumBooking
+                salonId={appointment?.salon_id || appointment?.branch_id || location.state?.branch_id || ''}
+                stylistId={stylist?.id || location.state?.stylist_id || ''}
+                selectedSlot={selectedSlot || (appointment?.booking_slot ? { start_time: appointment.booking_slot, end_time: '' } : null)}
+                onSlotSelect={(slot) => {
+                  setAppointmentDate(slot.date);
+                  setAppointmentTime(slot.start_time);
+                  setSelectedSlot(slot);
+                }}
+                initialDate={appointmentDate || undefined}
               />
             </article>
 
@@ -394,7 +409,7 @@ const AppointmentConfirmation = () => {
             </article>
 
             <article className="booking-summary-card booking-summary-card--mobile mobile-only">
-              <div className="booking-summary-card__title">Request summary</div>
+              <div className="booking-summary-card__title">Booking summary</div>
               <PriceSummary serviceCount={normalizedServices.length} totalDuration={totalDuration} totalPrice={totalPrice} appointmentId={appointmentId} />
               <ConfirmBookingButton loading={saving} onClick={handleConfirmBooking} />
             </article>
@@ -402,7 +417,7 @@ const AppointmentConfirmation = () => {
 
           <aside className="booking-layout__sidebar desktop-only">
             <div className="booking-summary-card">
-              <div className="booking-summary-card__title">Request summary</div>
+              <div className="booking-summary-card__title">Booking summary</div>
               <PriceSummary serviceCount={normalizedServices.length} totalDuration={totalDuration} totalPrice={totalPrice} appointmentId={appointmentId} />
               <ConfirmBookingButton loading={saving} onClick={handleConfirmBooking} />
             </div>

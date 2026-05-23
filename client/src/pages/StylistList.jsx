@@ -17,20 +17,6 @@ const defaultBranchState = {
   state_id: 'state-karnataka',
 };
 
-const getGuestCustomerId = () => {
-  const storageKey = 'salonGuestCustomerId';
-  const existingGuestId = localStorage.getItem(storageKey);
-
-  if (existingGuestId) {
-    return existingGuestId;
-  }
-
-  const generatedGuestId = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-  localStorage.setItem(storageKey, generatedGuestId);
-
-  return generatedGuestId;
-};
-
 const StylistList = () => {
   const location = useLocation();
   const navigate = useNavigate();

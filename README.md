@@ -1,6 +1,6 @@
 # Salon Management App
 
-Modern MERN stack starter for the salon home flow. Customers select a main category, choose a sub category, and create an appointment record in MongoDB before moving to the stylist listing screen.
+Modern MERN stack starter for salon slot booking. Customers browse salons, view salon details and stylists, select services and pick available time slots at the salon to confirm appointments.
 
 ## Stack
 
@@ -34,19 +34,28 @@ Client variables:
 
 ## API
 
-- `POST /api/appointments`
+- Salon endpoints:
+  - `GET /api/salons` — list salons
+  - `GET /api/salons/:id` — salon details
+  - `GET /api/salons/:id/stylists` — stylists at a salon
+  - `GET /api/salons/:id/slots?date=YYYY-MM-DD` — available slots
 
-Payload:
+- Booking endpoints:
+  - `POST /api/bookings` — create a booking (protected)
+  - `GET /api/bookings/customer/:customerId` — list bookings for customer (protected)
+
+Example booking payload:
 
 ```json
 {
-  "main_category": "Women",
-  "sub_category": "Hair Care",
-  "created_by": "guest-user"
+  "salon_id": "<salonId>",
+  "stylist_id": "<stylistId>",
+  "slot_id": "<slotId>",
+  "service_ids": ["svc-1", "svc-2"]
 }
 ```
 
-Success response returns the saved appointment and message `You have successfully selected the main and sub category.`
+The server will reserve the slot and create a booking record with `booking_status` set to `CONFIRMED` when successful.
 
 ## Notes
 

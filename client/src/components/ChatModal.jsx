@@ -5,7 +5,7 @@ const ChatModal = ({ isOpen, stylistName = 'stylist', onClose, onSend }) => {
 
   useEffect(() => {
     if (isOpen) {
-      setMessage(`Hello ${stylistName}, I need help with my appointment request.`);
+      setMessage(`Hello ${stylistName}, I need help with my appointment.`);
     }
   }, [isOpen, stylistName]);
 
@@ -37,7 +37,7 @@ const ChatModal = ({ isOpen, stylistName = 'stylist', onClose, onSend }) => {
           </button>
         </div>
 
-        <p className="modal-card__body-text">Use chat to share notes or confirm appointment details before the stylist accepts the request.</p>
+        <p className="modal-card__body-text">Use chat to share notes or confirm appointment details before booking is completed.</p>
 
         <label className="booking-field booking-field--chat">
           <span>Your message</span>

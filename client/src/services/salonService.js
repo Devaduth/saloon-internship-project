@@ -1,0 +1,28 @@
+import apiClient from '../api/axios';
+
+export const getSalons = async (params = {}) => {
+  const response = await apiClient.get('/salons', { params });
+  return response.data;
+};
+
+export const getSalon = async (salonId) => {
+  const response = await apiClient.get(`/salons/${salonId}`);
+  return response.data;
+};
+
+export const getSalonStylists = async (salonId) => {
+  const response = await apiClient.get(`/salons/${salonId}/stylists`);
+  return response.data;
+};
+
+export const getSalonSlots = async (salonId, date) => {
+  const response = await apiClient.get(`/salons/${salonId}/slots`, { params: { date } });
+  return response.data;
+};
+
+export default {
+  getSalons,
+  getSalon,
+  getSalonStylists,
+  getSalonSlots,
+};

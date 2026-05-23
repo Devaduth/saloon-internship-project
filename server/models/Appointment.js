@@ -12,7 +12,8 @@ const appointmentSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    appointment_date_time: {
+    // New salon-based booking fields
+    salon_id: {
       type: String,
       trim: true,
       default: '',
@@ -22,11 +23,21 @@ const appointmentSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    customer_address: {
+    booking_date: {
       type: String,
       trim: true,
       default: '',
     },
+    booking_slot: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    service_ids: {
+      type: [String],
+      default: [],
+    },
+    // legacy fields (kept for compatibility but unused in salon flow)
     city_id: {
       type: String,
       trim: true,
@@ -60,39 +71,16 @@ const appointmentSchema = new mongoose.Schema(
     selected_services: {
       type: [
         {
-          id: {
-            type: String,
-            default: '',
-          },
-          name: {
-            type: String,
-            default: '',
-          },
-          service_name: {
-            type: String,
-            default: '',
-          },
-          duration: {
-            type: String,
-            default: '',
-          },
-          price: {
-            type: Number,
-            default: 0,
-          },
+          id: { type: String, default: '' },
+          name: { type: String, default: '' },
+          duration: { type: String, default: '' },
+          price: { type: Number, default: 0 },
         },
       ],
       default: [],
     },
-    total_price: {
-      type: Number,
-      default: 0,
-    },
-    total_duration: {
-      type: String,
-      trim: true,
-      default: '',
-    },
+    total_price: { type: Number, default: 0 },
+    total_duration: { type: String, trim: true, default: '' },
     created_by: {
       type: String,
       required: true,
@@ -105,11 +93,11 @@ const appointmentSchema = new mongoose.Schema(
       trim: true,
       default: 'guest-user',
     },
-    status: {
+    booking_status: {
       type: String,
       required: true,
-      enum: ['AA', 'IA'],
-      default: 'AA',
+      enum: ['CONFIRMED', 'PENDING', 'CANCELLED', 'COMPLETED'],
+      default: 'PENDING',
     },
   },
   {
