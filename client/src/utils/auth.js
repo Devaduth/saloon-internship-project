@@ -1,4 +1,4 @@
-const AUTH_STORAGE_KEYS = ['token', 'customer', 'customer_status', 'userId'];
+const AUTH_STORAGE_KEYS = ['token', 'customer', 'customer_status', 'userId', 'auth_role', 'auth_userId', 'auth_user'];
 
 const base64UrlDecode = (value) => {
   const normalizedValue = value.replace(/-/g, '+').replace(/_/g, '/');
@@ -8,6 +8,10 @@ const base64UrlDecode = (value) => {
 };
 
 export const getStoredAuthToken = () => localStorage.getItem('token') || '';
+
+export const getStoredAuthRole = () => localStorage.getItem('auth_role') || parseJwtPayload(getStoredAuthToken())?.role || '';
+
+export const getStoredAuthUserId = () => localStorage.getItem('auth_userId') || parseJwtPayload(getStoredAuthToken())?.userId || parseJwtPayload(getStoredAuthToken())?.customer_id || '';
 
 export const getStoredCustomer = () => {
   const rawCustomer = localStorage.getItem('customer');
@@ -48,13 +52,52 @@ export const isTokenValid = (token = '') => {
 
 export const getAuthSnapshot = () => {
   const token = getStoredAuthToken();
+  const payload = parseJwtPayload(token);
 
   return {
     token,
     isAuthenticated: Boolean(token) && isTokenValid(token),
     customer: getStoredCustomer(),
-    payload: parseJwtPayload(token),
+    payload,
+    role: getStoredAuthRole() || payload?.role || (payload?.customer_id ? 'customer' : ''),
+    userId: getStoredAuthUserId() || payload?.userId || payload?.customer_id || '',
   };
+};
+
+export const getAuthRedirectPath = (role = '') => {
+  if (role === 'admin') {
+    return '/admin';
+  }
+
+  if (role === 'staff') {
+    return '/staff';
+  }
+
+  return '/';
+};
+
+export const storeAuthSession = ({ token = '', role = '', userId = '', user = null, customer = null }) => {
+  if (token) {
+    localStorage.setItem('token', token);
+  }
+
+  if (role) {
+    localStorage.setItem('auth_role', role);
+  }
+
+  if (userId) {
+    localStorage.setItem('auth_userId', userId);
+    localStorage.setItem('userId', userId);
+  }
+
+  if (user) {
+    localStorage.setItem('auth_user', JSON.stringify(user));
+  }
+
+  if (customer) {
+    localStorage.setItem('customer', JSON.stringify(customer));
+    localStorage.setItem('customer_status', customer.status || 'OS');
+  }
 };
 
 export const getAuthenticatedCustomerId = (fallbackCustomerId = '') => {
@@ -70,7 +113,7 @@ export const getAuthenticatedCustomerId = (fallbackCustomerId = '') => {
 
   const payload = parseJwtPayload(getStoredAuthToken());
 
-  return payload?.customer_id || payload?.customerId || '';
+  return payload?.customer_id || payload?.customerId || payload?.userId || getStoredAuthUserId() || '';
 };
 
 export const clearAuthStorage = () => {

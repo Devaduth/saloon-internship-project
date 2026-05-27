@@ -1,5 +1,7 @@
 import jwt from 'jsonwebtoken';
+import Admin from '../models/Admin.js';
 import Customer from '../models/Customer.js';
+import Staff from '../models/Staff.js';
 
 const buildError = (message, code, statusCode = 401) => {
   const error = new Error(message);
@@ -16,7 +18,17 @@ const getJwtSecret = () => {
   return process.env.JWT_SECRET;
 };
 
-export const protect = async (request, _response, next) => {
+const ROLE_MODEL_MAP = {
+  customer: Customer,
+  admin: Admin,
+  staff: Staff,
+};
+
+const getDecodedRole = (decoded = {}) => decoded.role || (decoded.customer_id ? 'customer' : '');
+
+const getDecodedUserId = (decoded = {}) => decoded.userId || decoded.customer_id || decoded.admin_id || decoded.staff_id || '';
+
+const authorizeRequest = (allowedRoles = []) => async (request, _response, next) => {
   try {
     const authHeader = request.headers.authorization || '';
 
@@ -31,18 +43,33 @@ export const protect = async (request, _response, next) => {
     }
 
     const decoded = jwt.verify(token, getJwtSecret());
+    const role = getDecodedRole(decoded);
+    const userId = getDecodedUserId(decoded);
 
-    if (!decoded?.customer_id) {
+    if (!role || !userId) {
       throw buildError('Invalid authorization token.', 'UNAUTHORIZED', 401);
     }
 
-    const customer = await Customer.findById(decoded.customer_id);
-
-    if (!customer) {
-      throw buildError('Customer not found.', 'CUSTOMER_NOT_FOUND', 404);
+    if (allowedRoles.length && !allowedRoles.includes(role)) {
+      throw buildError('You do not have permission to access this resource.', 'FORBIDDEN', 403);
     }
 
-    request.customer = customer;
+    const Model = ROLE_MODEL_MAP[role];
+
+    if (!Model) {
+      throw buildError('Invalid authorization token.', 'UNAUTHORIZED', 401);
+    }
+
+    const user = await Model.findById(userId);
+
+    if (!user) {
+      throw buildError(`${role.charAt(0).toUpperCase() + role.slice(1)} not found.`, 'USER_NOT_FOUND', 404);
+    }
+
+    request.authUser = user;
+    request.user = user;
+    request.customer = role === 'customer' ? user : request.customer;
+    request.role = role;
     request.token = token;
 
     return next();
@@ -66,3 +93,11 @@ export const protect = async (request, _response, next) => {
     return next(error);
   }
 };
+
+export const authMiddleware = authorizeRequest;
+
+export const protect = authorizeRequest(['customer']);
+
+export const adminMiddleware = authorizeRequest(['admin']);
+
+export const staffMiddleware = authorizeRequest(['staff']);

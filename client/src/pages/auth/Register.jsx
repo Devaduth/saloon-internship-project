@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../api/axios';
-import { clearAuthStorage, getStoredAuthToken, getStoredCustomer, isTokenValid } from '../../utils/auth';
+import { clearAuthStorage, getAuthRedirectPath, getStoredAuthRole, getStoredAuthToken, getStoredCustomer, isTokenValid, parseJwtPayload, storeAuthSession } from '../../utils/auth';
 
 const authHighlights = ['Personalized recommendations', 'Faster booking experience', 'Exclusive offers & rewards'];
 
@@ -28,6 +28,14 @@ const Register = () => {
     if (!isTokenValid(token)) {
       clearAuthStorage();
       navigate('/auth', { replace: true });
+      return;
+    }
+
+    const payload = parseJwtPayload(token);
+    const role = getStoredAuthRole() || payload?.role || (payload?.customer_id ? 'customer' : '');
+
+    if (role && role !== 'customer') {
+      navigate(getAuthRedirectPath(role), { replace: true });
       return;
     }
 
@@ -112,8 +120,7 @@ const Register = () => {
       const customer = response?.data?.customer;
 
       if (customer) {
-        localStorage.setItem('customer', JSON.stringify(customer));
-        localStorage.setItem('customer_status', customer.status || 'AA');
+        storeAuthSession({ token, role: 'customer', userId: customer?._id || customer?.id || '', customer });
       }
 
       setSuccessMessage(response?.data?.message || 'You have successfully registered into the app');

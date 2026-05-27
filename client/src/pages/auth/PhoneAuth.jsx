@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../api/axios';
-import { clearAuthStorage, getStoredAuthToken, isTokenValid } from '../../utils/auth';
+import { clearAuthStorage, getAuthRedirectPath, getStoredAuthRole, getStoredAuthToken, isTokenValid, parseJwtPayload, storeAuthSession } from '../../utils/auth';
 
 const OTP_LENGTH = 6;
 const RESEND_SECONDS = 30;
@@ -53,7 +53,9 @@ const PhoneAuth = () => {
     const token = getStoredAuthToken();
 
     if (token && isTokenValid(token)) {
-      navigate('/', { replace: true });
+      const payload = parseJwtPayload(token);
+      const role = getStoredAuthRole() || payload?.role || (payload?.customer_id ? 'customer' : '');
+      navigate(getAuthRedirectPath(role), { replace: true });
       return () => clearTimer();
     }
 
@@ -212,14 +214,9 @@ const PhoneAuth = () => {
       const token = response?.data?.token;
       const customer = response?.data?.customer;
 
-      if (token) {
-        localStorage.setItem('token', token);
-      }
-
-      if (customer) {
-        localStorage.setItem('customer', JSON.stringify(customer));
-        localStorage.setItem('customer_status', customer.status || 'OS');
-      }
+        if (token) {
+          storeAuthSession({ token, role: 'customer', userId: customer?._id || customer?.id || '', customer });
+        }
 
       const hasCompleteProfile = Boolean(
         customer?.status === 'AA' && customer?.name && customer?.age && customer?.gender

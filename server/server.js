@@ -4,7 +4,9 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import appointmentRoutes from './routes/appointmentRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import staffRoutes from './routes/staffRoutes.js';
 import stylistRoutes from './routes/stylistRoutes.js';
 import salonRoutes from './routes/salonRoutes.js';
 import bookingRoutes from './routes/bookingRoutes.js';
@@ -65,6 +67,8 @@ app.get('/api/health', (_request, response) => {
 
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/staff', staffRoutes);
 app.use('/api/stylists', stylistRoutes);
 app.use('/api/salons', salonRoutes);
 app.use('/api/bookings', bookingRoutes);

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { clearAuthStorage, getStoredAuthToken, isTokenValid } from '../utils/auth';
+import { clearAuthStorage, getAuthRedirectPath, getStoredAuthRole, getStoredAuthToken, isTokenValid, parseJwtPayload } from '../utils/auth';
 
-const ProtectedRoute = () => {
+const ProtectedRoute = ({ allowedRoles = [] }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [checking, setChecking] = useState(true);
@@ -16,8 +16,16 @@ const ProtectedRoute = () => {
       return;
     }
 
+    const payload = parseJwtPayload(token);
+    const role = getStoredAuthRole() || payload?.role || (payload?.customer_id ? 'customer' : '');
+
+    if (allowedRoles.length && !allowedRoles.includes(role)) {
+      navigate(getAuthRedirectPath(role), { replace: true });
+      return;
+    }
+
     setChecking(false);
-  }, [location.pathname, navigate]);
+  }, [allowedRoles, location.pathname, navigate]);
 
   if (checking) {
     return (
