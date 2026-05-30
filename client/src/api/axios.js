@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { clearAuthStorage, getStoredAuthToken } from '../utils/auth';
+import { clearAuthStorage, getAuthLoginPath, getStoredAuthRole, getStoredAuthToken } from '../utils/auth';
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api',
@@ -22,11 +22,18 @@ apiClient.interceptors.request.use((config) => {
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error?.response?.status === 401) {
+    const isAuthEndpoint = /\/(auth\/(login|verify-otp|staff-admin-login|register)|admin\/login|staff\/login)\b/.test(error?.config?.url || '');
+
+    if (error?.response?.status === 401 && !isAuthEndpoint) {
+      const role = getStoredAuthRole();
       clearAuthStorage();
 
-      if (typeof window !== 'undefined' && window.location.pathname !== '/auth') {
-        window.location.replace('/auth');
+      if (typeof window !== 'undefined') {
+        const redirectPath = getAuthLoginPath(role);
+
+        if (window.location.pathname !== redirectPath) {
+          window.location.replace(redirectPath);
+        }
       }
     }
 

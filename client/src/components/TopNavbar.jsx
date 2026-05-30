@@ -1,13 +1,14 @@
 import { useNavigate } from 'react-router-dom';
-import { clearAuthStorage, getAuthSnapshot } from '../utils/auth';
+import { clearAuthStorage, getAuthLoginPath, getAuthSnapshot, getRoleNavigationItems } from '../utils/auth';
 
 const TopNavbar = ({ active = 'Home', onNavigate }) => {
   const navigate = useNavigate();
-  const { isAuthenticated, customer } = getAuthSnapshot();
+  const { isAuthenticated, customer, role } = getAuthSnapshot();
+  const navItems = getRoleNavigationItems(role);
 
   const handleLogout = () => {
     clearAuthStorage();
-    navigate('/auth', { replace: true });
+    navigate(getAuthLoginPath(role), { replace: true });
   };
 
   return (
@@ -22,26 +23,26 @@ const TopNavbar = ({ active = 'Home', onNavigate }) => {
       <nav className="top-navbar__links" aria-label="Primary">
         {isAuthenticated ? (
           <>
-            <button
-              type="button"
-              className={`top-navbar__link ${active === 'Home' ? 'active' : ''}`}
-              onClick={() => onNavigate?.('/')}
-            >
-              Home
-            </button>
-            <button type="button" className="top-navbar__link" onClick={() => onNavigate?.('/orders')}>
-              Orders
-            </button>
-            <button type="button" className="top-navbar__link" onClick={() => onNavigate?.('/profile')}>
-              Profile
-            </button>
-            <button type="button" className="top-navbar__link top-navbar__link--logout" onClick={handleLogout}>
-              Logout
-            </button>
+            {navItems.map((item) => (
+              item.action === 'logout' ? (
+                <button key={item.label} type="button" className="top-navbar__link top-navbar__link--logout" onClick={handleLogout}>
+                  {item.label}
+                </button>
+              ) : (
+                <button
+                  key={item.label}
+                  type="button"
+                  className={`top-navbar__link ${active === item.label ? 'active' : ''}`}
+                  onClick={() => onNavigate?.(item.target)}
+                >
+                  {item.label}
+                </button>
+              )
+            ))}
             {customer?.name ? <span className="top-navbar__badge">{customer.name}</span> : null}
           </>
         ) : (
-          <button type="button" className="top-navbar__link top-navbar__link--login" onClick={() => navigate('/auth')}>
+          <button type="button" className="top-navbar__link top-navbar__link--login" onClick={() => navigate(getAuthLoginPath('customer'))}>
             Login
           </button>
         )}

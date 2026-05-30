@@ -11,11 +11,17 @@ const buildError = (message, code, statusCode = 401) => {
 };
 
 const getJwtSecret = () => {
-  if (!process.env.JWT_SECRET) {
-    throw buildError('JWT secret is not configured.', 'JWT_SECRET_MISSING', 500);
+  const configuredSecret = String(process.env.JWT_SECRET || '').trim();
+
+  if (configuredSecret) {
+    return configuredSecret;
   }
 
-  return process.env.JWT_SECRET;
+  if (process.env.NODE_ENV !== 'production') {
+    return 'saloon-dev-jwt-secret';
+  }
+
+  throw buildError('JWT secret is not configured.', 'JWT_SECRET_MISSING', 500);
 };
 
 const ROLE_MODEL_MAP = {
@@ -24,7 +30,15 @@ const ROLE_MODEL_MAP = {
   staff: Staff,
 };
 
-const getDecodedRole = (decoded = {}) => decoded.role || (decoded.customer_id ? 'customer' : '');
+const normalizeRole = (role = '') => {
+  if (role === 'stylist' || role === 'manager') {
+    return 'staff';
+  }
+
+  return role;
+};
+
+const getDecodedRole = (decoded = {}) => normalizeRole(decoded.role || (decoded.customer_id ? 'customer' : ''));
 
 const getDecodedUserId = (decoded = {}) => decoded.userId || decoded.customer_id || decoded.admin_id || decoded.staff_id || '';
 

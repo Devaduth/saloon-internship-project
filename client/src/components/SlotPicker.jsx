@@ -1,26 +1,39 @@
 import { useEffect, useState } from 'react';
-import { getSalonSlots } from '../services/salonService';
+import { getAvailableSlots } from '../services/slotService';
 
-const SlotPicker = ({ salonId, stylistId, onSelect }) => {
+const SlotPicker = ({ stylistId, onSelect }) => {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const fetch = async () => {
+    let active = true;
+
+    const loadSlots = async () => {
       setLoading(true);
+
       try {
-        const resp = await getSalonSlots(salonId, date);
-        setSlots(resp.data || []);
-      } catch (e) {
-        setSlots([]);
+        const response = await getAvailableSlots({ date, stylistId, includeAll: true });
+        if (active) {
+          setSlots(response?.data || []);
+        }
+      } catch {
+        if (active) {
+          setSlots([]);
+        }
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
-    if (salonId) fetch();
-  }, [salonId, date]);
+    loadSlots();
+
+    return () => {
+      active = false;
+    };
+  }, [date, stylistId]);
 
   return (
     <div className="slot-picker">
@@ -36,13 +49,23 @@ const SlotPicker = ({ salonId, stylistId, onSelect }) => {
           {slots.length === 0 ? (
             <div>No slots available for selected date.</div>
           ) : (
-            slots
-              .filter((s) => !s.is_booked)
-              .map((s) => (
-                <button key={s._id} type="button" onClick={() => onSelect?.(s)} className="slot-item">
-                  {s.start_time} - {s.end_time}
+            slots.map((s) => {
+              const status = String(s.status || (s.is_booked ? 'BOOKED' : s.is_active === false ? 'UNAVAILABLE' : 'AVAILABLE')).toUpperCase();
+              const isClickable = status === 'AVAILABLE';
+
+              return (
+                <button
+                  key={s._id}
+                  type="button"
+                  onClick={() => isClickable && onSelect?.({ slot_id: s._id, ...s })}
+                  className={`slot-item slot-item--${status.toLowerCase()}`}
+                  disabled={!isClickable}
+                >
+                  <span className="slot-item__time">{s.start_time} - {s.end_time}</span>
+                  <span className="slot-item__status">{status.toLowerCase()}</span>
                 </button>
-              ))
+              );
+            })
           )}
         </div>
       )}

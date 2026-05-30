@@ -4,50 +4,30 @@ import apiClient from '../../api/axios';
 import { clearAuthStorage, getAuthRedirectPath, getStoredAuthRole, getStoredAuthToken, isTokenValid, parseJwtPayload, storeAuthSession } from '../../utils/auth';
 
 const OTP_LENGTH = 6;
-const RESEND_SECONDS = 30;
-
 const emptyOtp = Array.from({ length: OTP_LENGTH }, () => '');
 
-const authHighlights = ['Fast OTP verification', 'Secure & private', 'JWT protected session'];
-
-const getAuthRequestErrorMessage = (requestError, fallbackMessage) => {
-  const responseMessage = requestError?.response?.data?.message;
-
-  if (responseMessage) {
-    return responseMessage;
-  }
-
-  if (requestError?.code === 'ERR_NETWORK' || requestError?.message?.includes('Network Error')) {
-    return 'Unable to reach the auth server. Check that the backend is running and CORS allows this origin.';
-  }
-
-  return fallbackMessage;
+const LOGIN_MODES = {
+  customer: 'customer',
+  staffAdmin: 'staffAdmin',
 };
 
 const PhoneAuth = () => {
   const navigate = useNavigate();
   const otpRefs = useRef([]);
-  const timerRef = useRef(null);
 
-  const [mobileNumber, setMobileNumber] = useState('');
+  const [mode, setMode] = useState(LOGIN_MODES.customer);
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
   const [otpDigits, setOtpDigits] = useState(emptyOtp);
-  const [step, setStep] = useState('mobile');
+  const [step, setStep] = useState('credentials');
   const [loading, setLoading] = useState(false);
-  const [resending, setResending] = useState(false);
-  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-  const [timer, setTimer] = useState(0);
-  const [initializing, setInitializing] = useState(true);
+  const [devOtp, setDevOtp] = useState('');
+  const [pendingCustomer, setPendingCustomer] = useState(null);
 
-  const normalizedMobile = useMemo(() => String(mobileNumber).replace(/\D/g, '').slice(0, 10), [mobileNumber]);
+  const normalizedIdentifier = useMemo(() => String(identifier).trim(), [identifier]);
+  const normalizedEmail = useMemo(() => String(identifier).trim().toLowerCase(), [identifier]);
   const otpValue = useMemo(() => otpDigits.join(''), [otpDigits]);
-
-  const clearTimer = () => {
-    if (timerRef.current) {
-      window.clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-  };
 
   useEffect(() => {
     const token = getStoredAuthToken();
@@ -56,96 +36,88 @@ const PhoneAuth = () => {
       const payload = parseJwtPayload(token);
       const role = getStoredAuthRole() || payload?.role || (payload?.customer_id ? 'customer' : '');
       navigate(getAuthRedirectPath(role), { replace: true });
-      return () => clearTimer();
+      return;
     }
 
     if (token && !isTokenValid(token)) {
       clearAuthStorage();
     }
-
-    setInitializing(false);
-
-    return () => clearTimer();
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
-    if (timer <= 0) {
-      clearTimer();
-      return undefined;
-    }
-
-    timerRef.current = window.setInterval(() => {
-      setTimer((currentTimer) => {
-        if (currentTimer <= 1) {
-          clearTimer();
-          return 0;
-        }
-
-        return currentTimer - 1;
-      });
-    }, 1000);
-
-    return () => clearTimer();
-  }, [timer]);
-
-  const resetOtpState = () => {
+    setStep('credentials');
     setOtpDigits(emptyOtp);
-    setMessage('');
     setError('');
-  };
+    setDevOtp('');
+    setPendingCustomer(null);
+    setPassword('');
+  }, [mode]);
 
-  const validateMobile = () => {
-    const strippedMobile = normalizedMobile;
+  const focusOtpBox = (index) => otpRefs.current[index]?.focus?.();
 
-    if (!strippedMobile) {
-      setError('Please enter the mobile number to continue');
-      return false;
-    }
-
-    if (!/^[6-9]\d{9}$/.test(strippedMobile)) {
-      setError('Mobile number you entered is invalid');
-      return false;
-    }
-
+  const startCustomerOtp = async () => {
     setError('');
-    return true;
-  };
 
-  const focusOtpBox = (index) => {
-    otpRefs.current[index]?.focus?.();
-  };
+    if (!normalizedIdentifier || !password.trim()) {
+      setError('Mobile number and password are required');
+      return;
+    }
 
-  const handleMobileChange = (event) => {
-    const digitsOnly = event.target.value.replace(/\D/g, '').slice(0, 10);
-    setMobileNumber(digitsOnly);
+    try {
+      setLoading(true);
 
-    if (error) {
-      setError('');
+      const response = await apiClient.post('/auth/login', {
+        identifier: normalizedIdentifier,
+        email: normalizedEmail,
+        mobile_number: normalizedIdentifier.replace(/\D/g, ''),
+        password: password.trim(),
+      });
+
+      const customer = response?.data?.customer || null;
+      const generatedOtp = response?.data?.generated_otp || '';
+      setPendingCustomer(customer);
+      setDevOtp(generatedOtp);
+      setStep('otp');
+      setOtpDigits(emptyOtp);
+      focusOtpBox(0);
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Invalid mobile number or password.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSendOtp = async () => {
-    if (!validateMobile()) {
+  const handleStaffAdminLogin = async (event) => {
+    event.preventDefault();
+
+    if (!normalizedEmail || !password.trim()) {
+      setError('Email and password are required');
       return;
     }
 
     try {
       setLoading(true);
       setError('');
-      setMessage('');
 
-      const response = await apiClient.post('/auth/send-otp', {
-        mobile_number: normalizedMobile,
+      const response = await apiClient.post('/auth/staff-admin-login', {
+        email: normalizedEmail,
+        password: password.trim(),
       });
-      const generatedOtp = response?.data?.generated_otp;
 
-      setStep('otp');
-      setTimer(RESEND_SECONDS);
-      resetOtpState();
-      setMessage(generatedOtp ? `OTP sent successfully. Generated OTP is: ${generatedOtp} (haven't implemented twilio/fast2sms as they are paid services)` : 'OTP sent successfully');
-      window.setTimeout(() => focusOtpBox(0), 0);
-    } catch (requestError) {
-      setError(getAuthRequestErrorMessage(requestError, 'Mobile number you entered is invalid'));
+      const token = response?.data?.token || '';
+      const user = response?.data?.user || null;
+      const userRole = response?.data?.role || 'staff';
+
+      storeAuthSession({
+        token,
+        role: userRole,
+        userId: user?._id || user?.id || '',
+        user,
+      });
+
+      navigate(getAuthRedirectPath(userRole), { replace: true });
+    } catch (err) {
+      setError(err?.response?.data?.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -153,129 +125,46 @@ const PhoneAuth = () => {
 
   const handleOtpChange = (index, value) => {
     const digit = value.replace(/\D/g, '').slice(-1);
-
-    setOtpDigits((currentDigits) => {
-      const nextDigits = [...currentDigits];
-      nextDigits[index] = digit;
-      return nextDigits;
+    setOtpDigits((current) => {
+      const next = [...current];
+      next[index] = digit;
+      return next;
     });
 
     if (digit && index < OTP_LENGTH - 1) {
       focusOtpBox(index + 1);
     }
-
-    if (error) {
-      setError('');
-    }
   };
 
-  const handleOtpKeyDown = (index, event) => {
-    if (event.key === 'Backspace' && !otpDigits[index] && index > 0) {
-      focusOtpBox(index - 1);
-    }
-  };
-
-  const handleOtpPaste = (event) => {
-    event.preventDefault();
-    const pastedValue = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH);
-
-    if (!pastedValue) {
-      return;
-    }
-
-    const nextDigits = Array.from({ length: OTP_LENGTH }, (_, index) => pastedValue[index] || '');
-    setOtpDigits(nextDigits);
-
-    const nextFocusIndex = Math.min(pastedValue.length, OTP_LENGTH - 1);
-    window.setTimeout(() => focusOtpBox(nextFocusIndex), 0);
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!otpValue) {
-      setError('Please enter the OTP');
-      return;
-    }
-
+  const verifyCustomerOtp = async () => {
     if (otpValue.length !== OTP_LENGTH) {
-      setError('OTP you entered is invalid');
+      setError('Enter the 6-digit OTP');
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
-      setMessage('');
-
       const response = await apiClient.post('/auth/verify-otp', {
-        mobile_number: normalizedMobile,
+        identifier: normalizedIdentifier,
+        email: normalizedEmail,
+        mobile_number: normalizedIdentifier.replace(/\D/g, ''),
         otp: otpValue,
       });
 
       const token = response?.data?.token;
-      const customer = response?.data?.customer;
+      const customer = response?.data?.customer || pendingCustomer;
 
-        if (token) {
-          storeAuthSession({ token, role: 'customer', userId: customer?._id || customer?.id || '', customer });
-        }
+      if (token) {
+        storeAuthSession({ token, role: 'customer', userId: customer?._id || customer?.id || '', customer });
+      }
 
-      const hasCompleteProfile = Boolean(
-        customer?.status === 'AA' && customer?.name && customer?.age && customer?.gender
-      );
-
-      navigate(hasCompleteProfile ? '/' : '/register');
-    } catch (requestError) {
-      const responseMessage = requestError?.response?.data?.message || 'OTP you entered is invalid';
-      setError(responseMessage);
+      navigate('/', { replace: true });
+    } catch (err) {
+      setError(err?.response?.data?.message || 'OTP verification failed');
     } finally {
       setLoading(false);
     }
   };
-
-  const handleResendOtp = async () => {
-    if (timer > 0 || resending) {
-      return;
-    }
-
-    try {
-      setResending(true);
-      setError('');
-      setMessage('');
-
-      const response = await apiClient.post('/auth/send-otp', {
-        mobile_number: normalizedMobile,
-      });
-      const generatedOtp = response?.data?.generated_otp;
-
-      setOtpDigits(emptyOtp);
-      setTimer(RESEND_SECONDS);
-      setMessage(generatedOtp ? `OTP resent successfully. Generated OTP is: ${generatedOtp}` : 'OTP resent successfully');
-      window.setTimeout(() => focusOtpBox(0), 0);
-    } catch (requestError) {
-      setError(getAuthRequestErrorMessage(requestError, 'Mobile number you entered is invalid'));
-    } finally {
-      setResending(false);
-    }
-  };
-
-  const handleChangeMobileNumber = () => {
-    setStep('mobile');
-    setTimer(0);
-    clearTimer();
-    setOtpDigits(emptyOtp);
-    setMessage('');
-    setError('');
-  };
-
-  if (initializing) {
-    return (
-      <div className="auth-loading-screen">
-        <div className="auth-loading-card">
-          <div className="auth-spinner" />
-          <p>Loading authentication...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="auth-page">
@@ -283,7 +172,7 @@ const PhoneAuth = () => {
       <div className="auth-page__backdrop auth-page__backdrop--two" />
 
       <div className="auth-page__layout auth-page__layout--compact">
-        <aside className="auth-rail">
+        <aside className="auth-rail auth-rail--register">
           <div className="auth-brand auth-brand--compact">
             <div className="auth-brand__mark">✂</div>
             <div>
@@ -293,117 +182,151 @@ const PhoneAuth = () => {
           </div>
 
           <h1 className="auth-rail__title">
-            Your beauty.
-            <span>Our priority.</span>
+            One login.
+            <span>All roles, one entry point.</span>
           </h1>
 
           <p className="auth-rail__description">
-            A clean, premium sign-in flow designed for fast booking and elegant salon experiences.
+            Customers use the OTP flow. Staff and admins sign in with email and password. The system routes each role to the correct dashboard automatically.
           </p>
 
           <div className="auth-mini-features">
-            {authHighlights.map((item) => (
-              <span key={item} className="auth-mini-feature">
-                {item}
-              </span>
-            ))}
+            <span className="auth-mini-feature">Customer OTP</span>
+            <span className="auth-mini-feature">Staff/Admin login</span>
+            <span className="auth-mini-feature">Role-based redirect</span>
           </div>
 
-          <div className="auth-rail__accent" />
+          <div className="auth-rail__accent auth-rail__accent--register" />
         </aside>
 
-        <main className="auth-flow-shell">
-          <section className={`auth-flow-card auth-flow-card--${step}`}>
-            <div className="auth-step">Step {step === 'mobile' ? '1' : '2'} of 2</div>
+        <main className="auth-flow-shell auth-flow-shell--register">
+          <section className="auth-flow-card auth-flow-card--register">
+            <div className="auth-step">Unified login</div>
+            <h2 className="auth-card__title">Welcome back</h2>
+            <p className="auth-card__description">Choose your login method and continue.</p>
 
-            {step === 'mobile' ? (
-              <div className="auth-step-panel auth-step-panel--active">
-                <h2 className="auth-card__title">Verify your phone</h2>
-                <p className="auth-card__description">Enter your mobile number to receive a one-time password (OTP).</p>
+            <div className="auth-mode-switch" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
+              <button
+                type="button"
+                onClick={() => setMode(LOGIN_MODES.customer)}
+                className={`auth-button ${mode === LOGIN_MODES.customer ? 'auth-button--full' : ''}`}
+                style={{ opacity: mode === LOGIN_MODES.customer ? 1 : 0.72 }}
+              >
+                Continue with Phone
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode(LOGIN_MODES.staffAdmin)}
+                className={`auth-button ${mode === LOGIN_MODES.staffAdmin ? 'auth-button--full' : ''}`}
+                style={{ opacity: mode === LOGIN_MODES.staffAdmin ? 1 : 0.72 }}
+              >
+                Staff/Admin Login
+              </button>
+            </div>
 
-                <div className="auth-field-group auth-field-group--phone">
-                  <div className="auth-country-code">
-                    <span>+91</span>
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M7 10l5 5 5-5" />
-                    </svg>
+            {mode === LOGIN_MODES.customer ? (
+              step === 'credentials' ? (
+                <div className="auth-form">
+                  <label className="auth-form__field">
+                    <span className="auth-form__label">Mobile number or email</span>
+                    <div className="auth-field-group">
+                      <span className="auth-field-group__icon">✉</span>
+                      <input
+                        type="text"
+                        value={identifier}
+                        onChange={(event) => setIdentifier(event.target.value)}
+                        placeholder="Enter mobile number or email"
+                        className="auth-input"
+                        autoComplete="username"
+                      />
+                    </div>
+                  </label>
+
+                  <label className="auth-form__field">
+                    <span className="auth-form__label">Password</span>
+                    <div className="auth-field-group">
+                      <span className="auth-field-group__icon">🔑</span>
+                      <input
+                        type="password"
+                        value={password}
+                        onChange={(event) => setPassword(event.target.value)}
+                        placeholder="Enter password"
+                        className="auth-input"
+                        autoComplete="current-password"
+                      />
+                    </div>
+                  </label>
+
+                  {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
+
+                  <button type="button" onClick={startCustomerOtp} disabled={loading} className="auth-button auth-button--full">
+                    {loading ? 'Sending...' : 'Continue with Phone'}
+                  </button>
+
+                  <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>
+                    <button type="button" className="auth-link-button" onClick={() => navigate('/register')}>Create account</button>
                   </div>
-                  <input
-                    type="tel"
-                    inputMode="numeric"
-                    autoComplete="tel"
-                    placeholder="Enter 10 digit mobile number"
-                    value={mobileNumber}
-                    onChange={handleMobileChange}
-                    className="auth-input"
-                  />
                 </div>
+              ) : (
+                <div>
+                  <p className="auth-card__description">Enter the 6-digit code sent to your phone.</p>
+                  <div className="auth-otp-grid">
+                    {otpDigits.map((digit, index) => (
+                      <input key={index} ref={(el) => (otpRefs.current[index] = el)} value={digit} onChange={(event) => handleOtpChange(index, event.target.value)} maxLength={1} className="auth-otp-input" />
+                    ))}
+                  </div>
 
-                {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
-                {message ? <div className="auth-alert auth-alert--success">{message}</div> : null}
+                  {devOtp ? <div className="auth-alert auth-alert--success">Dev OTP: {devOtp}</div> : null}
 
-                <button type="button" onClick={handleSendOtp} disabled={loading} className="auth-button auth-button--full">
-                  <span>{loading ? 'Sending OTP...' : 'Send OTP'}</span>
-                  <span className="auth-button__arrow">→</span>
-                </button>
+                  {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
 
-                <div className="auth-note">
-                  <span className="auth-note__icon">🔒</span>
-                  <span>We will never share your number with anyone.</span>
+                  <button type="button" onClick={verifyCustomerOtp} disabled={loading} className="auth-button auth-button--full">Verify OTP</button>
+
+                  <button type="button" className="auth-back-link" onClick={() => setStep('credentials')}>
+                    ← Back
+                  </button>
                 </div>
-              </div>
-            ) : null}
-
-            {step === 'otp' ? (
-              <div className="auth-step-panel auth-step-panel--active">
-                <h2 className="auth-card__title">Enter OTP</h2>
-                <p className="auth-card__description">
-                  Enter the 6-digit code sent to <strong>+91 {normalizedMobile || '9876543210'}</strong>.
-                </p>
-
-                <div className="auth-countdown">
-                  <span>Countdown</span>
-                  <strong>{timer > 0 ? `Resend OTP in ${String(timer).padStart(2, '0')}` : 'You can resend now'}</strong>
-                </div>
-
-                <div className="auth-otp-grid">
-                  {otpDigits.map((digit, index) => (
+              )
+            ) : (
+              <form className="auth-form" onSubmit={handleStaffAdminLogin}>
+                <label className="auth-form__field">
+                  <span className="auth-form__label">Work email</span>
+                  <div className="auth-field-group">
+                    <span className="auth-field-group__icon">✉</span>
                     <input
-                      key={`otp-${index}`}
-                      ref={(element) => {
-                        otpRefs.current[index] = element;
-                      }}
-                      value={digit}
-                      onChange={(event) => handleOtpChange(index, event.target.value)}
-                      onKeyDown={(event) => handleOtpKeyDown(index, event)}
-                      onPaste={handleOtpPaste}
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete={index === 0 ? 'one-time-code' : 'off'}
-                      maxLength={1}
-                      className="auth-otp-input"
+                      type="email"
+                      value={identifier}
+                      onChange={(event) => setIdentifier(event.target.value)}
+                      placeholder="name@salon.com"
+                      className="auth-input"
+                      autoComplete="email"
                     />
-                  ))}
-                </div>
+                  </div>
+                </label>
+
+                <label className="auth-form__field">
+                  <span className="auth-form__label">Password</span>
+                  <div className="auth-field-group">
+                    <span className="auth-field-group__icon">🔑</span>
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(event) => setPassword(event.target.value)}
+                      placeholder="Enter password"
+                      className="auth-input"
+                      autoComplete="current-password"
+                    />
+                  </div>
+                </label>
 
                 {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
-                {message ? <div className="auth-alert auth-alert--success">{message}</div> : null}
 
-                <button type="button" onClick={handleVerifyOtp} disabled={loading} className="auth-button auth-button--full">
-                  <span>{loading ? 'Verifying...' : 'Verify OTP'}</span>
+                <button type="submit" disabled={loading} className="auth-button auth-button--full">
+                  {loading ? 'Signing in...' : 'Sign in'}
                   <span className="auth-button__arrow">→</span>
                 </button>
-
-                <div className="auth-actions-row auth-actions-row--compact">
-                  <button type="button" onClick={handleResendOtp} disabled={timer > 0 || resending} className="auth-secondary-button">
-                    {resending ? 'Resending...' : 'Resend OTP'}
-                  </button>
-                  <button type="button" onClick={handleChangeMobileNumber} className="auth-link-button">
-                    Change mobile number
-                  </button>
-                </div>
-              </div>
-            ) : null}
+              </form>
+            )}
           </section>
         </main>
       </div>

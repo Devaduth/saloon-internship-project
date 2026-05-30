@@ -183,7 +183,12 @@ const AppointmentConfirmation = () => {
           const splitValue = splitDateTime(appointmentData.appointment_date_time);
           setAppointmentDate(splitValue.date);
           setAppointmentTime(splitValue.time);
-          setSelectedSlot({ date: splitValue.date, start_time: splitValue.time, end_time: '' });
+          setSelectedSlot({
+            slot_id: appointmentData?.slotId || appointmentData?.slot_id || '',
+            date: splitValue.date,
+            start_time: splitValue.time,
+            end_time: '',
+          });
         }
 
         // salon flow: customer address is no longer required
@@ -276,21 +281,27 @@ const AppointmentConfirmation = () => {
       return;
     }
 
+    if (!selectedSlot?.slot_id) {
+      toast.error('Please select a slot before confirming booking.');
+      return;
+    }
+
     try {
       setSaving(true);
 
-        const payload = {
-          salon_id: appointment?.branch_id || stylist?.branch_id || location.state?.branch_id || '',
-          stylist_id: stylist?.id || location.state?.stylist_id || appointment?.stylist_id || '',
-          booking_date: appointmentDate,
-          booking_slot: appointmentTime,
-          service_ids: normalizedServices.map((s) => s.id).filter(Boolean),
-          selected_services: normalizedServices,
-          total_price: totalPrice,
-          total_duration: totalDuration,
-          modified_by: createdBy,
-          booking_status: 'PENDING',
-        };
+      const payload = {
+        stylist_id: stylist?.id || location.state?.stylist_id || appointment?.stylist_id || '',
+        salon_id: stylist?.salonId || location.state?.salon_id || appointment?.salonId || appointment?.salon_id || '',
+        slot_id: selectedSlot.slot_id || null,
+        booking_date: appointmentDate,
+        booking_slot: appointmentTime,
+        service_ids: normalizedServices.map((s) => s.id).filter(Boolean),
+        selected_services: normalizedServices,
+        total_price: totalPrice,
+        total_duration: totalDuration,
+        modified_by: createdBy,
+        booking_status: 'PENDING',
+      };
 
       const response = await updateAppointment(appointmentId, payload);
       setAppointment(response?.data || appointment);
@@ -385,7 +396,6 @@ const AppointmentConfirmation = () => {
               </div>
 
               <PremiumBooking
-                salonId={appointment?.salon_id || appointment?.branch_id || location.state?.branch_id || ''}
                 stylistId={stylist?.id || location.state?.stylist_id || ''}
                 selectedSlot={selectedSlot || (appointment?.booking_slot ? { start_time: appointment.booking_slot, end_time: '' } : null)}
                 onSlotSelect={(slot) => {

@@ -1,6 +1,4 @@
-const subCategories = ['Hair Care', 'Body Care'];
-
-const SubCategoryDropdown = ({ value, onChange, disabled }) => {
+const SubCategoryDropdown = ({ value, onChange, disabled, subCategories = [] }) => {
   return (
     <div className="selector-group">
       <label className="section-label" htmlFor="sub-category">

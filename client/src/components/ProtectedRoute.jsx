@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { clearAuthStorage, getAuthRedirectPath, getStoredAuthRole, getStoredAuthToken, isTokenValid, parseJwtPayload } from '../utils/auth';
+import { clearAuthStorage, getAuthLoginPath, getAuthRedirectPath, getStoredAuthRole, getStoredAuthToken, isTokenValid, parseJwtPayload, normalizeRole } from '../utils/auth';
 
 const ProtectedRoute = ({ allowedRoles = [] }) => {
   const navigate = useNavigate();
@@ -9,15 +9,16 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
   useEffect(() => {
     const token = getStoredAuthToken();
+    const expectedRole = allowedRoles[0] || 'customer';
 
     if (!token || !isTokenValid(token)) {
       clearAuthStorage();
-      navigate('/auth', { replace: true, state: { from: location.pathname } });
+      navigate(getAuthLoginPath(expectedRole), { replace: true, state: { from: location.pathname } });
       return;
     }
 
     const payload = parseJwtPayload(token);
-    const role = getStoredAuthRole() || payload?.role || (payload?.customer_id ? 'customer' : '');
+    const role = normalizeRole(getStoredAuthRole() || payload?.role || (payload?.customer_id ? 'customer' : ''));
 
     if (allowedRoles.length && !allowedRoles.includes(role)) {
       navigate(getAuthRedirectPath(role), { replace: true });

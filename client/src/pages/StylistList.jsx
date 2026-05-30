@@ -7,43 +7,94 @@ import MobileHeader from '../components/MobileHeader';
 import StylistCard from '../components/StylistCard';
 import TopNavbar from '../components/TopNavbar';
 import { createAppointment } from '../services/appointmentService';
-import { branchInfo, selectionStylists } from '../data/stylistSelectionData';
+import { getSalons } from '../services/salonService';
 import { getCustomerId } from '../utils/customerIdentity';
+import { getStylists } from '../services/stylistService';
 
-const defaultBranchState = {
-  branch_id: 'branch-pusan',
-  city_id: 'city-bangalore',
-  area_id: 'area-pusan',
-  state_id: 'state-karnataka',
-};
+const toArray = (response) => (Array.isArray(response?.data?.data) ? response.data.data : Array.isArray(response?.data) ? response.data : []);
 
 const StylistList = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const selectedCategory = location.state?.category || 'Men';
+  const selectedCategory = location.state?.category || '';
+  const selectedSubcategory = location.state?.subcategory || '';
   const customerId = getCustomerId(location.state?.customer_id || '');
   const createdBy = location.state?.created_by || customerId;
   const [selectedStylistId, setSelectedStylistId] = useState(location.state?.stylist_id || '');
   const [loadingStylistId, setLoadingStylistId] = useState('');
   const [offlineError, setOfflineError] = useState(false);
+  const [stylists, setStylists] = useState([]);
+  const [loadingStylists, setLoadingStylists] = useState(true);
+  const [salons, setSalons] = useState([]);
+  const [loadingSalon, setLoadingSalon] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const getStylistKey = (stylist) => stylist?._id || stylist?.id || '';
 
   const availableStylists = useMemo(() => {
-    const matchedStylists = selectionStylists.filter(
-      (stylist) => stylist.status === 'AA' && stylist.category?.toLowerCase() === selectedCategory.toLowerCase()
-    );
+    const matchedStylists = stylists.filter((stylist) => (stylist.status || '').toUpperCase() === 'AA');
+    return matchedStylists.filter(
+      (stylist) => {
+        if (!selectedCategory) {
+          return true;
+        }
 
-    return matchedStylists.length ? matchedStylists : selectionStylists.filter((stylist) => stylist.status === 'AA');
-  }, [selectedCategory]);
+        const categories = Array.isArray(stylist.category) ? stylist.category : stylist.category ? [stylist.category] : [stylist.main_category].filter(Boolean);
+        return categories.some((category) => String(category).toLowerCase() === String(selectedCategory || '').toLowerCase());
+      }
+    );
+  }, [stylists, selectedCategory]);
+
+  useEffect(() => {
+    let active = true;
+
+    const loadStylists = async () => {
+      try {
+        setLoadingStylists(true);
+        setLoadingSalon(true);
+        setErrorMessage('');
+
+        const [stylistResp, salonResp] = await Promise.all([
+          getStylists({ category: selectedCategory, subcategory: selectedSubcategory }),
+          getSalons(),
+        ]);
+
+        if (!active) {
+          return;
+        }
+
+        setStylists(toArray(stylistResp));
+        setSalons(toArray(salonResp));
+      } catch (error) {
+        if (active) {
+          const message = error?.response?.data?.message || 'Failed to load stylists.';
+          setErrorMessage(message);
+          setStylists([]);
+          setSalons([]);
+        }
+      } finally {
+        if (active) {
+          setLoadingStylists(false);
+          setLoadingSalon(false);
+        }
+      }
+    };
+
+    loadStylists();
+    return () => {
+      active = false;
+    };
+  }, [selectedCategory, selectedSubcategory]);
 
   useEffect(() => {
     if (!availableStylists.length) {
       return;
     }
 
-    const hasSelectedStylist = availableStylists.some((stylist) => stylist.id === selectedStylistId);
+    const hasSelectedStylist = availableStylists.some((stylist) => getStylistKey(stylist) === selectedStylistId);
 
     if (!hasSelectedStylist) {
-      setSelectedStylistId(availableStylists[0].id);
+      setSelectedStylistId(getStylistKey(availableStylists[0]));
     }
   }, [availableStylists, selectedStylistId]);
 
@@ -55,36 +106,41 @@ const StylistList = () => {
     }
 
     try {
-      setLoadingStylistId(stylist.id);
+      const stylistKey = getStylistKey(stylist);
+      setLoadingStylistId(stylistKey);
       setOfflineError(false);
-      setSelectedStylistId(stylist.id);
+      setSelectedStylistId(stylistKey);
+
+      const salon = salons[0] || null;
 
       const appointment = await createAppointment({
         customer_id: customerId,
         main_category: selectedCategory,
         sub_category: stylist.subcategory || '',
-        stylist_id: stylist.id,
+        stylist_id: stylistKey,
+        salon_id: salon?._id || location.state?.salon_id || '',
         created_by: createdBy,
         modified_by: createdBy,
-        ...defaultBranchState,
-        branch_id: stylist.branch_id || defaultBranchState.branch_id,
-        city_id: stylist.city_id || defaultBranchState.city_id,
-        area_id: stylist.area_id || defaultBranchState.area_id,
-        state_id: stylist.state_id || defaultBranchState.state_id,
+        branch_id: stylist.branch_id || salon?._id || location.state?.branch_id || '',
+        city_id: stylist.city_id || salon?.city_id || location.state?.city_id || '',
+        area_id: stylist.area_id || salon?.area_id || location.state?.area_id || '',
+        state_id: stylist.state_id || salon?.state_id || location.state?.state_id || '',
       });
 
       navigate('/services', {
         state: {
           appointment_id: appointment?.data?._id,
           customer_id: customerId,
-          stylist_id: stylist.id,
-          branch_id: stylist.branch_id || defaultBranchState.branch_id,
-          city_id: stylist.city_id || defaultBranchState.city_id,
-          area_id: stylist.area_id || defaultBranchState.area_id,
-          state_id: stylist.state_id || defaultBranchState.state_id,
+          stylist_id: stylistKey,
+          salon_id: salon?._id || location.state?.salon_id || '',
+          branch_id: stylist.branch_id || salon?._id || location.state?.branch_id || '',
+          city_id: stylist.city_id || salon?.city_id || location.state?.city_id || '',
+          area_id: stylist.area_id || salon?.area_id || location.state?.area_id || '',
+          state_id: stylist.state_id || salon?.state_id || location.state?.state_id || '',
           created_by: createdBy,
           category: selectedCategory,
-          subcategory: stylist.subcategory || '',
+          subcategory: stylist.subcategory || selectedSubcategory || '',
+          stylist,
         },
       });
     } catch (error) {
@@ -101,7 +157,15 @@ const StylistList = () => {
     }
   };
 
-  const activeStylist = availableStylists.find((stylist) => stylist.id === selectedStylistId) || availableStylists[0] || null;
+  const activeStylist = availableStylists.find((stylist) => getStylistKey(stylist) === selectedStylistId) || availableStylists[0] || null;
+  const activeSalon = salons[0] || null;
+  const branchDetails = {
+    name: activeSalon?.name || 'Salon',
+    area: activeSalon?.area_id || activeSalon?.address || '—',
+    working_hours: activeSalon?.workingHours?.start && activeSalon?.workingHours?.end ? `${activeSalon.workingHours.start} - ${activeSalon.workingHours.end}` : '—',
+    rating: Number(activeSalon?.rating || 0),
+    city: activeSalon?.city_id || '—',
+  };
 
   return (
     <div className="site-shell site-shell--subcategories">
@@ -115,15 +179,15 @@ const StylistList = () => {
         <section className="page-hero page-hero--subcategory">
           <div className="page-hero__content">
             <div className="page-kicker">Stylist selection</div>
-            <h1>Choose a stylist for {selectedCategory}</h1>
+            <h1>Choose a stylist{selectedCategory ? ` for ${selectedCategory}` : ''}</h1>
             <p>Pick one stylist to create the booking draft and continue to the services page.</p>
             <div className="selection-chip-row">
-              <span className="selection-chip selection-chip--static">{selectedCategory}</span>
+              {selectedCategory ? <span className="selection-chip selection-chip--static">{selectedCategory}</span> : null}
             </div>
           </div>
 
           <div className="page-hero__panel page-hero__panel--selection">
-            <BranchInfo branch={branchInfo} />
+            <BranchInfo branch={branchDetails} />
           </div>
         </section>
 
@@ -148,17 +212,27 @@ const StylistList = () => {
             <button type="button" className="text-link" onClick={() => navigate('/')}>Change category</button>
           </div>
 
-          <div className="selection-stylists-grid">
-            {availableStylists.map((stylist) => (
-              <StylistCard
-                key={stylist.id}
-                stylist={stylist}
-                selected={selectedStylistId === stylist.id}
-                loading={loadingStylistId === stylist.id}
-                onSelect={handleSelectStylist}
-              />
-            ))}
-          </div>
+          {loadingStylists || loadingSalon ? <div className="loading-state">Loading stylists...</div> : null}
+
+          {!loadingStylists && !loadingSalon && availableStylists.length ? (
+            <div className="selection-stylists-grid">
+              {availableStylists.map((stylist) => (
+                <StylistCard
+                  key={getStylistKey(stylist)}
+                  stylist={stylist}
+                  selected={selectedStylistId === getStylistKey(stylist)}
+                  loading={loadingStylistId === getStylistKey(stylist)}
+                  onSelect={handleSelectStylist}
+                />
+              ))}
+            </div>
+          ) : null}
+
+          {!loadingStylists && !loadingSalon && !availableStylists.length ? (
+            <div className="empty-state">No staff added yet.</div>
+          ) : null}
+
+          {errorMessage ? <div className="admin-alert">{errorMessage}</div> : null}
         </section>
       </main>
 

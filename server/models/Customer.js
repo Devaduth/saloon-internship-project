@@ -1,7 +1,15 @@
 import mongoose from 'mongoose';
+import { hashPassword } from '../utils/password.js';
 
 const customerSchema = new mongoose.Schema(
   {
+    email: {
+      type: String,
+      unique: true,
+      sparse: true,
+      trim: true,
+      lowercase: true,
+    },
     mobile_number: {
       type: String,
       required: true,
@@ -24,6 +32,14 @@ const customerSchema = new mongoose.Schema(
     is_verified: {
       type: Boolean,
       default: false,
+    },
+    password_hash: {
+      type: String,
+      select: false,
+    },
+    password_salt: {
+      type: String,
+      select: false,
     },
     name: {
       type: String,
@@ -51,6 +67,16 @@ const customerSchema = new mongoose.Schema(
   }
 );
 
-const Customer = mongoose.model('Customer', customerSchema);
+customerSchema.virtual('password').set(function setPassword(value) {
+  if (!value) {
+    return;
+  }
+
+  const { salt, hash } = hashPassword(value);
+  this.password_salt = salt;
+  this.password_hash = hash;
+});
+
+const Customer = mongoose.models.Customer || mongoose.model('Customer', customerSchema);
 
 export default Customer;

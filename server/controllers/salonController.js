@@ -1,5 +1,6 @@
+import mongoose from 'mongoose';
 import Salon from '../models/Salon.js';
-import Stylist from '../models/Stylist.js';
+import Staff from '../models/Staff.js';
 import Slot from '../models/Slot.js';
 
 export const listSalons = async (req, res, next) => {
@@ -15,6 +16,12 @@ export const listSalons = async (req, res, next) => {
 export const getSalonById = async (req, res, next) => {
   try {
     const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid salon ID' });
+    }
+
+    console.log('Received salonId:', id);
     const salon = await Salon.findById(id).lean();
 
     if (!salon) {
@@ -30,7 +37,13 @@ export const getSalonById = async (req, res, next) => {
 export const getSalonStylists = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const stylists = await Stylist.find({ salon_id: id, status: 'AA' }).lean();
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid salon ID' });
+    }
+
+    console.log('Received salonId:', id);
+    const stylists = await Staff.find({ salonId: id, status: 'AA' }).populate('services').lean({ virtuals: true });
     return res.status(200).json({ success: true, data: stylists });
   } catch (error) {
     return next(error);
@@ -41,6 +54,12 @@ export const getSalonSlots = async (req, res, next) => {
   try {
     const { id } = req.params; // salon id
     const date = req.query.date || '';
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid salon ID' });
+    }
+
+    console.log('Received salonId:', id);
     const filter = { salon_id: id };
 
     if (date) {

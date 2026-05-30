@@ -1,5 +1,13 @@
 const AUTH_STORAGE_KEYS = ['token', 'customer', 'customer_status', 'userId', 'auth_role', 'auth_userId', 'auth_user'];
 
+export const normalizeRole = (role = '') => {
+  if (role === 'stylist' || role === 'manager') {
+    return 'staff';
+  }
+
+  return role;
+};
+
 const base64UrlDecode = (value) => {
   const normalizedValue = value.replace(/-/g, '+').replace(/_/g, '/');
   const paddedValue = normalizedValue.padEnd(Math.ceil(normalizedValue.length / 4) * 4, '=');
@@ -9,7 +17,7 @@ const base64UrlDecode = (value) => {
 
 export const getStoredAuthToken = () => localStorage.getItem('token') || '';
 
-export const getStoredAuthRole = () => localStorage.getItem('auth_role') || parseJwtPayload(getStoredAuthToken())?.role || '';
+export const getStoredAuthRole = () => normalizeRole(localStorage.getItem('auth_role') || parseJwtPayload(getStoredAuthToken())?.role || '');
 
 export const getStoredAuthUserId = () => localStorage.getItem('auth_userId') || parseJwtPayload(getStoredAuthToken())?.userId || parseJwtPayload(getStoredAuthToken())?.customer_id || '';
 
@@ -59,21 +67,53 @@ export const getAuthSnapshot = () => {
     isAuthenticated: Boolean(token) && isTokenValid(token),
     customer: getStoredCustomer(),
     payload,
-    role: getStoredAuthRole() || payload?.role || (payload?.customer_id ? 'customer' : ''),
+    role: normalizeRole(getStoredAuthRole() || payload?.role || (payload?.customer_id ? 'customer' : '')),
     userId: getStoredAuthUserId() || payload?.userId || payload?.customer_id || '',
   };
 };
 
 export const getAuthRedirectPath = (role = '') => {
-  if (role === 'admin') {
+  const normalizedRole = normalizeRole(role);
+
+  if (normalizedRole === 'admin') {
     return '/admin';
   }
 
-  if (role === 'staff') {
+  if (normalizedRole === 'staff') {
     return '/staff';
   }
 
   return '/';
+};
+
+export const getAuthLoginPath = (role = '') => {
+  return '/login';
+};
+
+export const getRoleNavigationItems = (role = '') => {
+  const normalizedRole = normalizeRole(role);
+  const sharedLogout = { label: 'Logout', target: getAuthLoginPath(normalizedRole), action: 'logout' };
+
+  if (normalizedRole === 'admin') {
+    return [
+      { label: 'Dashboard', target: '/admin/dashboard' },
+      sharedLogout,
+    ];
+  }
+
+  if (normalizedRole === 'staff') {
+    return [
+      { label: 'Dashboard', target: '/staff/dashboard' },
+      sharedLogout,
+    ];
+  }
+
+  return [
+    { label: 'Home', target: '/' },
+    { label: 'Orders', target: '/orders' },
+    { label: 'Profile', target: '/profile' },
+    sharedLogout,
+  ];
 };
 
 export const storeAuthSession = ({ token = '', role = '', userId = '', user = null, customer = null }) => {

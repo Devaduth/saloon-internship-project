@@ -8,6 +8,7 @@ Modern MERN stack starter for salon slot booking. Customers browse salons, view 
 - Backend: Node.js, Express, Mongoose
 - Database: MongoDB Atlas
 - Validation: API and frontend checks for required fields and connectivity
+- Customer auth: email/password login followed by OTP verification to the registered phone number
 
 ## Structure
 
@@ -31,6 +32,22 @@ Server variables:
 Client variables:
 
 - `VITE_API_BASE_URL=http://localhost:5000/api`
+
+## Customer Auth Flow
+
+- Create account with name, age, gender, email, mobile number, password, and confirm password.
+- Sign in with email and password.
+- If credentials are valid, the server sends an OTP to the registered mobile number.
+- Enter the OTP to complete login.
+- Existing phone-only customer records are updated in place during registration when the mobile number matches, which prevents duplicate customer rows.
+
+## Demo Login Accounts
+
+- Customer: `customer.demo@saloon.local` / `Customer@12345`
+- Admin: `admin.demo@saloon.local` / `Admin@12345`
+- Staff: `staff.demo@saloon.local` / `Staff@12345`
+
+In local development, the server falls back to a built-in JWT secret if `JWT_SECRET` is not set. Set `JWT_SECRET` explicitly in production.
 
 ## API
 

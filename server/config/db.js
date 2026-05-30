@@ -1,7 +1,9 @@
 import dns from 'node:dns/promises';
 import mongoose from 'mongoose';
+import { MongoMemoryServer } from 'mongodb-memory-server';
 
 const SRV_PREFIX = '_mongodb._tcp.';
+let memoryServer = null;
 
 const sanitizeMongoUri = (uri) => {
   try {
@@ -71,11 +73,26 @@ const buildDirectMongoUri = async (uri) => {
 
 export const connectDB = async () => {
   try {
-    if (!process.env.MONGODB_URI) {
-      throw new Error("MONGODB_URI is not defined");
+    let uri = process.env.MONGODB_URI?.trim();
+
+    if (!uri) {
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('MONGODB_URI is not defined');
+      }
+
+      console.warn('MONGODB_URI is not defined. Starting an in-memory MongoDB instance for development.');
+
+      if (!memoryServer) {
+        memoryServer = await MongoMemoryServer.create({
+          instance: {
+            dbName: 'saloonDB',
+          },
+        });
+      }
+
+      uri = memoryServer.getUri();
     }
 
-    const uri = process.env.MONGODB_URI.trim();
     const isSrvUri = uri.startsWith('mongodb+srv://');
 
     console.log(`MongoDB URI detected: ${Boolean(uri)}`);

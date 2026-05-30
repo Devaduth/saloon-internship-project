@@ -7,53 +7,98 @@ import BrandCard from '../components/BrandCard';
 import MobileHeader from '../components/MobileHeader';
 import ServiceSelection from '../components/ServiceSelection';
 import TopNavbar from '../components/TopNavbar';
-import { brands, branchInfo, selectionStylists } from '../data/stylistSelectionData';
+import { getSalons } from '../services/salonService';
+import { getStylistDetails } from '../services/stylistService';
 import { updateAppointmentStylist } from '../services/stylistService';
 import { getCustomerId } from '../utils/customerIdentity';
+
+const brands = [
+  { name: "L'OREAL PARIS", logo: 'L' },
+  { name: 'MY', logo: 'MY' },
+  { name: 'HIVEA', logo: 'H' },
+  { name: "Stylist's Edge", logo: 'SE' },
+];
+
+const toArray = (response) => (Array.isArray(response?.data?.data) ? response.data.data : Array.isArray(response?.data) ? response.data : []);
 
 const StylistSelection = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const selectedCategory = location.state?.category || 'Men';
-  const selectedSubcategory = location.state?.subcategory || 'Hair care';
+  const selectedCategory = location.state?.category || '';
+  const selectedSubcategory = location.state?.subcategory || '';
   const appointmentId = location.state?.appointment_id || '';
   const customerId = getCustomerId(location.state?.customer_id || '');
   const createdBy = location.state?.created_by || customerId;
 
-  const [activeStylistId, setActiveStylistId] = useState(location.state?.stylist_id || '');
+  const [activeStylistId, setActiveStylistId] = useState(location.state?.stylist_id || location.state?.stylist?._id || location.state?.stylist?.id || '');
   const [selectedServiceIds, setSelectedServiceIds] = useState(
     () => location.state?.selected_services?.map((service) => service.id || service.name).filter(Boolean) || []
   );
   const [bookingLoading, setBookingLoading] = useState(false);
+  const [activeStylist, setActiveStylist] = useState(location.state?.stylist || null);
+  const [activeSalon, setActiveSalon] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const activeStylist = useMemo(
-    () => selectionStylists.find((stylist) => stylist.id === activeStylistId) || selectionStylists[0] || null,
-    [activeStylistId]
-  );
-
+  const resolvedStylist = useMemo(() => location.state?.stylist || activeStylist, [activeStylist, location.state?.stylist]);
 
   useEffect(() => {
-    const providedServiceIds = location.state?.selected_services?.map((service) => service.id || service.name).filter(Boolean) || [];
+    let active = true;
 
-    if (providedServiceIds.length) {
-      setSelectedServiceIds(providedServiceIds);
-      return;
-    }
+    const load = async () => {
+      try {
+        setLoading(true);
+        setErrorMessage('');
 
-    if (activeStylist?.services?.length) {
-      setSelectedServiceIds((currentServiceIds) =>
-        currentServiceIds.length ? currentServiceIds : [activeStylist.services[0].id || activeStylist.services[0].name]
-      );
-    }
-  }, [activeStylist, location.state?.selected_services]);
+        const [salonResp, stylistResp] = await Promise.all([getSalons(), activeStylistId ? getStylistDetails(activeStylistId) : Promise.resolve(null)]);
+
+        if (!active) {
+          return;
+        }
+
+        const salons = toArray(salonResp);
+        setActiveSalon(salons[0] || null);
+
+        if (stylistResp?.data) {
+          setActiveStylist(stylistResp.data);
+        }
+
+        const providedServiceIds = location.state?.selected_services?.map((service) => service.id || service.name).filter(Boolean) || [];
+        if (providedServiceIds.length) {
+          setSelectedServiceIds(providedServiceIds);
+          return;
+        }
+
+        const stylist = stylistResp?.data || location.state?.stylist || null;
+        if (stylist?.services?.length) {
+          setSelectedServiceIds([stylist.services[0].id || stylist.services[0].name]);
+        }
+      } catch (error) {
+        if (active) {
+          const message = error?.response?.data?.message || 'Failed to load stylist details.';
+          setErrorMessage(message);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+
+    return () => {
+      active = false;
+    };
+  }, [activeStylistId, location.state?.selected_services, location.state?.stylist]);
 
   const branchDetails = {
-    ...branchInfo,
-    name: activeStylist?.branch_name || branchInfo.name,
-    area: activeStylist?.area || branchInfo.area,
-    city: activeStylist?.city || branchInfo.city,
-    rating: activeStylist?.rating || branchInfo.rating,
+    name: activeSalon?.name || activeStylist?.branch_name || 'Salon',
+    area: activeStylist?.area || activeSalon?.area_id || activeSalon?.address || '—',
+    working_hours: activeSalon?.workingHours?.start && activeSalon?.workingHours?.end ? `${activeSalon.workingHours.start} - ${activeSalon.workingHours.end}` : '—',
+    city: activeStylist?.city || activeSalon?.city_id || '—',
+    rating: Number(activeStylist?.rating || activeSalon?.rating || 0),
   };
 
   const handleContinueBooking = async () => {
@@ -78,15 +123,17 @@ const StylistSelection = () => {
     }
 
     const selectedServices = activeStylist.services?.filter((service) => selectedServiceIds.includes(service.id || service.name)) || [];
+    const stylistId = activeStylist._id || activeStylist.id || activeStylist.stylist_id || '';
 
     try {
       setBookingLoading(true);
       await updateAppointmentStylist(appointmentId, {
-        stylist_id: activeStylist.id,
+        stylist_id: stylistId,
         branch_id: activeStylist.branch_id || location.state?.branch_id || '',
         city_id: activeStylist.city_id || location.state?.city_id || '',
         area_id: activeStylist.area_id || location.state?.area_id || '',
         state_id: activeStylist.state_id || location.state?.state_id || '',
+        salon_id: activeSalon?._id || location.state?.salon_id || '',
         modified_by: createdBy,
         selected_service: selectedServices[0]?.name || '',
         selected_services: selectedServices,
@@ -96,7 +143,7 @@ const StylistSelection = () => {
         state: {
           appointment_id: appointmentId,
           customer_id: customerId,
-          stylist_id: activeStylist.id,
+          stylist_id: stylistId,
           branch_id: activeStylist.branch_id || location.state?.branch_id || '',
           city_id: activeStylist.city_id || location.state?.city_id || '',
           area_id: activeStylist.area_id || location.state?.area_id || '',
@@ -141,6 +188,9 @@ const StylistSelection = () => {
           </div>
         </section>
 
+        {loading ? <div className="loading-state">Loading services...</div> : null}
+        {errorMessage ? <div className="admin-alert">{errorMessage}</div> : null}
+
         <section className="selection-layout">
           <div className="selection-layout__main">
             <section className="page-section selection-section">
@@ -152,7 +202,7 @@ const StylistSelection = () => {
               </div>
 
               <ServiceSelection
-                services={activeStylist?.services || []}
+                services={resolvedStylist?.services || []}
                 selectedServiceIds={selectedServiceIds}
                 onToggleService={(service) => {
                   const serviceKey = service.id || service.name;

@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import Appointment from '../models/Appointment.js';
+import Slot from '../models/Slot.js';
+import { computeSlotStatus } from '../services/admin/slotService.js';
 
 const buildError = (message, code) => {
   const error = new Error(message);
@@ -74,12 +76,60 @@ const calculateServiceTotals = (services = []) => {
 };
 
 const ensureAppointmentId = async (appointment) => {
-  if (appointment && !appointment.appointment_id) {
-    appointment.appointment_id = appointment._id.toString();
+  if (appointment && !appointment.appointmentId) {
+    appointment.appointmentId = appointment._id.toString();
     await appointment.save();
   }
 
   return appointment;
+};
+
+const syncSlotForAppointment = async ({ nextSlotId = '', previousSlotId = '', appointmentId = '' }) => {
+  if (previousSlotId && previousSlotId !== nextSlotId) {
+    const previousSlot = await Slot.findById(previousSlotId);
+
+    if (previousSlot) {
+      previousSlot.is_booked = false;
+      previousSlot.is_active = true;
+      previousSlot.status = 'AVAILABLE';
+      previousSlot.booking_id = '';
+      await previousSlot.save();
+    }
+  }
+
+  if (nextSlotId) {
+    const slot = await Slot.findById(nextSlotId);
+
+    if (!slot) {
+      throw new Error('Selected slot not found.');
+    }
+
+    if (computeSlotStatus(slot) !== 'AVAILABLE') {
+      throw new Error('This slot has already been booked. Please select another slot.');
+    }
+
+    slot.is_booked = true;
+    slot.is_active = true;
+    slot.status = 'BOOKED';
+    slot.booking_id = appointmentId;
+    await slot.save();
+  }
+};
+
+const normalizeObjectIdOrNull = (value = '') => {
+  const text = String(value || '').trim();
+  return mongoose.Types.ObjectId.isValid(text) ? text : null;
+};
+
+const getSlotTiming = (slot = null) => {
+  if (!slot) {
+    return { bookingDate: '', bookingSlot: '' };
+  }
+
+  return {
+    bookingDate: String(slot.date || slot.slotDate || '').trim(),
+    bookingSlot: [slot.start_time || slot.startTime || '', slot.end_time || slot.endTime || ''].filter(Boolean).join('-'),
+  };
 };
 
 export const createAppointment = async (request, response, next) => {
@@ -88,44 +138,43 @@ export const createAppointment = async (request, response, next) => {
     const customerId = request.body.customer_id || new mongoose.Types.ObjectId().toString();
     const createdBy = request.body.created_by || request.body.user_id || 'guest-user';
     const modifiedBy = request.body.modified_by || createdBy;
+    const staffId = request.body.staff_id || request.body.stylist_id || '';
+    const salonId = request.body.salon_id || request.body.salonId || null;
+    const slotId = normalizeObjectIdOrNull(request.body.slot_id);
+    const slot = slotId ? await Slot.findById(slotId) : null;
 
     // Support both selected_services payload and service_ids list
     const selectedServices = Array.isArray(request.body.selected_services)
       ? normalizeSelectedServices(request.body.selected_services)
       : [];
+    const serviceIds = Array.isArray(request.body.service_ids) ? request.body.service_ids : [];
 
     const totals = calculateServiceTotals(selectedServices);
 
-    const appointment = await Appointment.findOneAndUpdate(
-      { customer_id: customerId },
-      {
-        $set: {
-          salon_id: request.body.salon_id || '',
-          stylist_id: request.body.stylist_id || '',
-          booking_date: request.body.booking_date || '',
-          booking_slot: request.body.booking_slot || '',
-          service_ids: Array.isArray(request.body.service_ids) ? request.body.service_ids : [],
-          main_category,
-          sub_category,
-          selected_services: selectedServices,
-          total_price: totals.totalPrice,
-          total_duration: formatMinutes(totals.totalMinutes),
-          modified_by: modifiedBy,
-          booking_status: 'PENDING',
-        },
-        $setOnInsert: {
-          created_by: createdBy,
-        },
-      },
-      {
-        new: true,
-        upsert: true,
-        runValidators: true,
-        setDefaultsOnInsert: true,
-      }
-    );
+    const appointment = await Appointment.create({
+      customerId,
+      staffId,
+      salonId,
+      slotId,
+      bookingDate: request.body.booking_date || getSlotTiming(slot).bookingDate,
+      bookingSlot: request.body.booking_slot || getSlotTiming(slot).bookingSlot,
+      services: serviceIds,
+      mainCategory: main_category,
+      subCategory: sub_category,
+      selectedServices: selectedServices,
+      totalPrice: totals.totalPrice,
+      totalDuration: formatMinutes(totals.totalMinutes),
+      modifiedBy,
+      bookingStatus: 'PENDING',
+      createdBy,
+      appointmentId: '',
+    });
 
     await ensureAppointmentId(appointment);
+
+    if (slotId) {
+      await syncSlotForAppointment({ nextSlotId: slotId, appointmentId: appointment._id.toString() });
+    }
 
     return response.status(201).json({ success: true, message: 'Appointment draft created successfully.', data: appointment });
   } catch (error) {
@@ -171,24 +220,35 @@ export const updateAppointment = async (request, response, next) => {
 
     const selectedServices = Array.isArray(request.body.selected_services)
       ? normalizeSelectedServices(request.body.selected_services)
-      : appointment.selected_services;
+      : appointment.selectedServices;
     const totals = calculateServiceTotals(selectedServices);
-
-    appointment.salon_id = request.body.salon_id || appointment.salon_id;
-    appointment.booking_date = request.body.booking_date || appointment.booking_date;
-    appointment.booking_slot = request.body.booking_slot || appointment.booking_slot;
-    appointment.stylist_id = request.body.stylist_id || appointment.stylist_id;
-    appointment.service_ids = Array.isArray(request.body.service_ids) ? request.body.service_ids : appointment.service_ids;
-    appointment.selected_services = selectedServices;
-    appointment.total_price = Number.isFinite(Number(request.body.total_price))
+    const nextSalonId = request.body.salon_id || request.body.salonId || appointment.salonId || null;
+    const nextSlotId = normalizeObjectIdOrNull(request.body.slot_id) || appointment.slotId || null;
+    const previousSlotId = appointment.slotId || '';
+    const nextSlot = nextSlotId ? await Slot.findById(nextSlotId) : null;
+    const nextTiming = getSlotTiming(nextSlot);
+    appointment.bookingDate = request.body.booking_date || nextTiming.bookingDate || appointment.bookingDate;
+    appointment.bookingSlot = request.body.booking_slot || nextTiming.bookingSlot || appointment.bookingSlot;
+    appointment.staffId = request.body.staff_id || request.body.stylist_id || appointment.staffId;
+    appointment.salonId = nextSalonId || null;
+    appointment.slotId = nextSlotId || null;
+    appointment.services = Array.isArray(request.body.service_ids) ? request.body.service_ids : appointment.services;
+    appointment.selectedServices = selectedServices;
+    appointment.totalPrice = Number.isFinite(Number(request.body.total_price))
       ? Number(request.body.total_price)
       : totals.totalPrice;
-    appointment.total_duration = request.body.total_duration || formatMinutes(totals.totalMinutes);
-    appointment.modified_by = request.body.modified_by || appointment.modified_by || 'guest-user';
-    appointment.booking_status = request.body.booking_status || appointment.booking_status;
-    appointment.appointment_id = appointment.appointment_id || appointment._id.toString();
+    appointment.totalDuration = request.body.total_duration || formatMinutes(totals.totalMinutes);
+    appointment.modifiedBy = request.body.modified_by || appointment.modifiedBy || 'guest-user';
+    appointment.bookingStatus = request.body.booking_status || appointment.bookingStatus;
+    appointment.appointmentId = appointment.appointmentId || appointment._id.toString();
 
     await appointment.save();
+
+    if (request.body.booking_status && String(request.body.booking_status).toUpperCase() === 'CANCELLED') {
+      await syncSlotForAppointment({ previousSlotId: nextSlotId || previousSlotId, appointmentId: appointment._id.toString() });
+    } else if (nextSlotId) {
+      await syncSlotForAppointment({ nextSlotId, previousSlotId, appointmentId: appointment._id.toString() });
+    }
 
     return response.status(200).json({
       success: true,
