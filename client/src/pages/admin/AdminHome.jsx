@@ -602,7 +602,7 @@ const AdminHome = () => {
     ) : null;
 
   return (
-    <div className="admin-dashboard">
+    <div className="admin-dashboard app-shell min-h-screen w-full overflow-x-hidden">
       <div className={`admin-mobile-overlay ${sidebarOpen ? 'is-open' : ''}`} onClick={() => setSidebarOpen(false)} />
 
       <AdminSidebar
@@ -618,7 +618,7 @@ const AdminHome = () => {
         isOpen={sidebarOpen}
       />
 
-      <main className="admin-main">
+      <main className="admin-main app-container">
         <AdminTopbar
           activeLabel={SECTION_LABELS[activeSection]}
           salonName={selectedSalon?.name || ''}
@@ -783,7 +783,7 @@ const AdminHome = () => {
               </label>
             </div>
 
-            <div className="admin-booking-count" style={{ marginBottom: '12px', fontWeight: 600 }}>
+            <div className="admin-booking-count">
               Total Bookings: {bookings.length}
             </div>
 

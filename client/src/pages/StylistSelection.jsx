@@ -163,19 +163,19 @@ const StylistSelection = () => {
   };
 
   return (
-    <div className="site-shell site-shell--selection">
+    <div className="site-shell site-shell--selection app-shell min-h-screen w-full overflow-x-hidden">
       <TopNavbar active="Home" onNavigate={(target) => navigate(target)} />
 
-      <main className="page-main page-main--selection">
+      <main className="page-main page-main--selection app-container">
         <section className="mobile-header mobile-header--mobile-only">
-          <MobileHeader title="Services" showBack centerTitle onBack={() => navigate(-1)} />
+          <MobileHeader title="Services" showBack showMenu centerTitle onBack={() => navigate(-1)} />
         </section>
 
         <section className="page-hero page-hero--selection">
           <div className="page-hero__content">
-            <div className="page-kicker">Services and booking</div>
-            <h1>Select services for {activeStylist?.name || 'your stylist'}.</h1>
-            <p>Review the available services, choose what you need, and continue to booking.</p>
+            <div className="page-kicker">Service selection</div>
+            <h1>Build your appointment with {activeStylist?.name || 'your stylist'}.</h1>
+            <p>Select one or more services and review the running summary before choosing a time.</p>
 
             <div className="selection-chip-row">
               <span className="selection-chip selection-chip--static">{selectedCategory}</span>
@@ -197,7 +197,7 @@ const StylistSelection = () => {
               <div className="section-header-row section-header-row--wide">
                 <div>
                   <div className="section-heading">Services</div>
-                  <div className="section-subheading">Select a service before continuing</div>
+                  <div className="section-subheading">Clear duration and pricing for every selection.</div>
                 </div>
               </div>
 
@@ -218,8 +218,8 @@ const StylistSelection = () => {
             <section className="page-section selection-section">
               <div className="section-header-row section-header-row--wide">
                 <div>
-                  <div className="section-heading">Brands</div>
-                  <div className="section-subheading">Supported salon brand partners</div>
+                  <div className="section-heading">Trusted products</div>
+                  <div className="section-subheading">Premium care partners used by the salon.</div>
                 </div>
               </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import BottomNavbar from '../components/BottomNavbar';
@@ -149,6 +149,8 @@ const AppointmentConfirmation = () => {
   const [addressEditing, setAddressEditing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [bookingCompleteOpen, setBookingCompleteOpen] = useState(false);
+  const redirectTimerRef = useRef(null);
 
   useEffect(() => {
     let mounted = true;
@@ -217,6 +219,14 @@ const AppointmentConfirmation = () => {
       mounted = false;
     };
   }, [appointmentId, location.state?.stylist]);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current) {
+        window.clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
 
   const normalizedServices = useMemo(
     () => (selectedServices.length ? selectedServices : location.state?.selected_services?.map(normalizeService).filter(Boolean) || []),
@@ -306,7 +316,11 @@ const AppointmentConfirmation = () => {
       const response = await updateAppointment(appointmentId, payload);
       setAppointment(response?.data || appointment);
       setSuccessMessage('You have successfully booked the appointment.');
+      setBookingCompleteOpen(true);
       toast.success('You have successfully booked the appointment.');
+      redirectTimerRef.current = window.setTimeout(() => {
+        navigate('/', { replace: true });
+      }, 1800);
     } catch (error) {
       const message = error?.response?.data?.message || 'Unable to confirm the appointment right now.';
       toast.error(message);
@@ -325,21 +339,21 @@ const AppointmentConfirmation = () => {
   };
 
   return (
-    <div className="site-shell site-shell--booking">
+    <div className="site-shell site-shell--booking app-shell min-h-screen w-full overflow-x-hidden">
       <TopNavbar active="Home" onNavigate={(target) => navigate(target)} />
 
-      <main className="page-main page-main--booking">
+      <main className="page-main page-main--booking app-container">
         <section className="mobile-header mobile-header--mobile-only">
-          <MobileHeader title="Service Request" showBack centerTitle onBack={() => navigate(-1)} />
+          <MobileHeader title="Service Request" showBack showMenu centerTitle onBack={() => navigate(-1)} />
         </section>
 
         {loading ? <div className="loading-state">Loading appointment details...</div> : null}
 
         <section className="page-hero page-hero--booking">
           <div className="page-hero__content">
-            <div className="page-kicker">Cart and appointment confirmation</div>
-            <h1>Book Appointment</h1>
-            <p>Review your stylist, selected services, appointment date and time, then book the appointment.</p>
+            <div className="page-kicker">Finalize appointment</div>
+            <h1>Choose a time and confirm.</h1>
+            <p>Review your stylist, service breakdown, date, slot, and total before sending the request.</p>
 
             {successMessage ? <div className="booking-success-banner">{successMessage}</div> : null}
           </div>
@@ -356,7 +370,7 @@ const AppointmentConfirmation = () => {
             <article className="booking-card">
               <div className="section-header-row section-header-row--wide">
                 <div>
-                  <div className="section-heading">Selected Services</div>
+                  <div className="section-heading">Selected services</div>
                   <div className="section-subheading">Review the chosen services, duration, and price</div>
                 </div>
                 <button
@@ -390,8 +404,8 @@ const AppointmentConfirmation = () => {
             <article className="booking-card">
               <div className="section-header-row section-header-row--wide">
                 <div>
-                  <div className="section-heading">Booking Details</div>
-                  <div className="section-subheading">Choose an appointment date and time</div>
+                  <div className="section-heading">Date and time</div>
+                  <div className="section-subheading">Pick an available slot from the salon schedule.</div>
                 </div>
               </div>
 
@@ -410,7 +424,7 @@ const AppointmentConfirmation = () => {
             <article className="booking-card">
               <div className="section-header-row section-header-row--wide">
                 <div>
-                  <div className="section-heading">Contact Actions</div>
+                  <div className="section-heading">Need help?</div>
                   <div className="section-subheading">Call or chat with the stylist if you need help</div>
                 </div>
               </div>
@@ -447,6 +461,28 @@ const AppointmentConfirmation = () => {
           setSuccessMessage('Chat message sent successfully.');
         }}
       />
+
+      {bookingCompleteOpen ? (
+        <div className="booking-complete-modal" role="dialog" aria-modal="true" aria-labelledby="booking-complete-title">
+          <div className="booking-complete-modal__card">
+            <div className="booking-complete-modal__icon">✓</div>
+            <h2 id="booking-complete-title">Booking completed</h2>
+            <p>Your appointment request was submitted successfully. Redirecting you to Home...</p>
+            <button
+              type="button"
+              className="continue-button continue-button--wide"
+              onClick={() => {
+                if (redirectTimerRef.current) {
+                  window.clearTimeout(redirectTimerRef.current);
+                }
+                navigate('/', { replace: true });
+              }}
+            >
+              Back to Home
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

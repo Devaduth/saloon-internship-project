@@ -168,19 +168,19 @@ const StylistList = () => {
   };
 
   return (
-    <div className="site-shell site-shell--subcategories">
+    <div className="site-shell site-shell--subcategories app-shell min-h-screen w-full overflow-x-hidden">
       <TopNavbar active="Categories" onNavigate={(target) => navigate(target)} />
 
-      <main className="page-main page-main--subcategory">
+      <main className="page-main page-main--subcategory app-container">
         <section className="mobile-header mobile-header--mobile-only">
-          <MobileHeader title="Stylists" showBack centerTitle onBack={() => navigate(-1)} />
+          <MobileHeader title="Stylists" showBack showMenu centerTitle onBack={() => navigate(-1)} />
         </section>
 
         <section className="page-hero page-hero--subcategory">
           <div className="page-hero__content">
-            <div className="page-kicker">Stylist selection</div>
-            <h1>Choose a stylist{selectedCategory ? ` for ${selectedCategory}` : ''}</h1>
-            <p>Pick one stylist to create the booking draft and continue to the services page.</p>
+            <div className="page-kicker">Curated professionals</div>
+            <h1>Choose your stylist{selectedCategory ? ` for ${selectedCategory}` : ''}.</h1>
+            <p>Compare specialists, availability, and salon details before moving into services.</p>
             <div className="selection-chip-row">
               {selectedCategory ? <span className="selection-chip selection-chip--static">{selectedCategory}</span> : null}
             </div>
@@ -207,7 +207,7 @@ const StylistList = () => {
           <div className="section-header-row section-header-row--wide">
             <div>
               <div className="section-heading section-heading--tight">Available stylists</div>
-              <div className="section-subheading">Select one stylist to move into services and booking</div>
+              <div className="section-subheading">Every card includes experience, specialties, services, and status.</div>
             </div>
             <button type="button" className="text-link" onClick={() => navigate('/')}>Change category</button>
           </div>
@@ -229,7 +229,11 @@ const StylistList = () => {
           ) : null}
 
           {!loadingStylists && !loadingSalon && !availableStylists.length ? (
-            <div className="empty-state">No staff added yet.</div>
+            <div className="premium-empty-state">
+              <div className="premium-empty-state__icon">✦</div>
+              <strong>No stylists available</strong>
+              <span>Try another category or check back after the salon updates its staff schedule.</span>
+            </div>
           ) : null}
 
           {errorMessage ? <div className="admin-alert">{errorMessage}</div> : null}

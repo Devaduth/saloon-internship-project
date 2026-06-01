@@ -140,8 +140,8 @@ const StaffHome = () => {
   };
 
   return (
-    <div className="admin-shell">
-      <div className="admin-shell__content">
+    <div className="admin-shell app-shell min-h-screen w-full overflow-x-hidden">
+      <div className="admin-shell__content app-container">
         <header className="admin-topbar">
           <div>
             <div className="admin-topbar__eyebrow">Staff workspace</div>
@@ -158,7 +158,7 @@ const StaffHome = () => {
           </div>
         </header>
 
-        <main className="admin-main">
+        <main className="admin-main app-container">
           <AdminSectionCard title="Appointment date" description="Choose the date whose bookings you want to view.">
             <div className="admin-slot-toolbar">
               <label className="admin-field">

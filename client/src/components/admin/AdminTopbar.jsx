@@ -2,7 +2,7 @@ const AdminTopbar = ({ activeLabel, salonName, onRefresh, onCreate, onMenuToggle
   return (
     <header className="admin-topbar">
       <button type="button" className="admin-topbar__menu" onClick={onMenuToggle} aria-label="Toggle sidebar">
-        Menu
+        <span className="admin-topbar__menu-icon" aria-hidden="true">☰</span>
       </button>
       <div>
         <div className="admin-topbar__eyebrow">Admin dashboard</div>

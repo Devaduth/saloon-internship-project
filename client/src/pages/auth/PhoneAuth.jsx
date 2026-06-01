@@ -167,11 +167,11 @@ const PhoneAuth = () => {
   };
 
   return (
-    <div className="auth-page">
+    <div className="auth-page app-shell min-h-screen w-full overflow-x-hidden">
       <div className="auth-page__backdrop auth-page__backdrop--one" />
       <div className="auth-page__backdrop auth-page__backdrop--two" />
 
-      <div className="auth-page__layout auth-page__layout--compact">
+      <div className="auth-page__layout auth-page__layout--compact app-container">
         <aside className="auth-rail auth-rail--register">
           <div className="auth-brand auth-brand--compact">
             <div className="auth-brand__mark">✂</div>

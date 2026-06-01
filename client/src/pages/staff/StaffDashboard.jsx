@@ -40,10 +40,10 @@ const StaffDashboard = () => {
   const completed = useMemo(() => appointments.filter((a) => (a.bookingStatus || '').toUpperCase() === 'COMPLETED'), [appointments]);
 
   return (
-    <div className="staff-dashboard page">
+    <div className="staff-dashboard page app-shell min-h-screen w-full overflow-x-hidden">
       <StaffTopbar />
 
-      <main className="staff-dashboard__main">
+      <main className="staff-dashboard__main app-container">
         <section className="admin-slot-toolbar">
           <label className="admin-field">
             <span>Selected date</span>

@@ -23,6 +23,8 @@ const AdminSidebar = ({ activeSection, onSelectSection, salons = [], selectedSal
           <button
             key={item.id}
             type="button"
+            aria-label={item.label}
+            title={item.label}
             className={`admin-sidebar__link ${activeSection === item.id ? 'is-active' : ''}`}
             onClick={() => onSelectSection(item.id)}
           >

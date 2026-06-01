@@ -16,9 +16,18 @@ import { getStylists } from '../services/stylistService';
 const toArray = (response) => (Array.isArray(response?.data?.data) ? response.data.data : Array.isArray(response?.data) ? response.data : []);
 
 const CATEGORY_META = {
-  Men: { image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=240&q=80' },
-  Women: { image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=240&q=80' },
-  Children: { image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=240&q=80' },
+  Men: {
+    image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=640&q=80',
+    description: 'Sharp fades, beard care, grooming rituals',
+  },
+  Women: {
+    image: 'https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&w=640&q=80',
+    description: 'Hair styling, skin care, color and finish',
+  },
+  Children: {
+    image: 'https://images.unsplash.com/photo-1503919545889-aef636e10ad4?auto=format&fit=crop&w=640&q=80',
+    description: 'Gentle cuts and quick family appointments',
+  },
 };
 
 const Home = () => {
@@ -72,7 +81,10 @@ const Home = () => {
 
   const activeSalon = salons[0] || null;
 
-  const categories = useMemo(() => SALON_CATEGORIES.map((name) => ({ name, image: CATEGORY_META[name]?.image || activeSalon?.images?.[0] || '' })), [activeSalon?.images]);
+  const categories = useMemo(
+    () => SALON_CATEGORIES.map((name) => ({ name, image: CATEGORY_META[name]?.image || activeSalon?.images?.[0] || '', description: CATEGORY_META[name]?.description || '' })),
+    [activeSalon?.images]
+  );
 
   const featuredStylists = useMemo(() => {
     if (!selectedCategory) {
@@ -87,6 +99,12 @@ const Home = () => {
 
   const handleCategoryClick = (category) => {
     setSelectedCategory(category.name);
+    navigate('/stylists', {
+      state: {
+        category: category.name,
+        salon_id: activeSalon?._id || '',
+      },
+    });
   };
 
   const handleSelectStylist = () => {
@@ -106,21 +124,26 @@ const Home = () => {
   };
 
   return (
-    <div className="site-shell site-shell--home">
+    <div className="site-shell site-shell--home app-shell min-h-screen w-full overflow-x-hidden">
       <TopNavbar active="Home" onNavigate={(target) => navigate(target)} />
 
-      <main className="page-main page-main--home">
+      <main className="page-main page-main--home app-container">
         <section className="mobile-header mobile-header--mobile-only">
-          <MobileHeader title="Home" showMenu />
+          <MobileHeader title="Home" showMenu centerTitle />
         </section>
 
         <section className="page-hero page-hero--full">
           <div className="page-hero__content">
-            <div className="page-kicker">Salon booking platform</div>
-            <h1>Book stylish salon services with a clean, responsive experience.</h1>
+            <div className="page-kicker">Premium salon appointments</div>
+            <h1>Book your next salon visit beautifully.</h1>
             <p>
-              Browse live categories and stylists loaded from the backend, then book services on a layout that feels native on mobile and polished on desktop.
+              Discover trusted stylists, compare services, and reserve a time that fits your day in a calm, polished booking flow.
             </p>
+            <div className="customer-hero__stats">
+              <span><strong>{stylists.length || '24+'}</strong> stylists</span>
+              <span><strong>4.8</strong> average rating</span>
+              <span><strong>Instant</strong> booking</span>
+            </div>
           </div>
 
           <div className="page-hero__panel">
@@ -132,8 +155,8 @@ const Home = () => {
         <section className="page-section page-section--categories">
           <div className="section-header-row section-header-row--wide">
             <div>
-              <div className="section-heading">Categories</div>
-              <div className="section-subheading">Choose a service type to continue</div>
+              <div className="section-heading">Choose your experience</div>
+              <div className="section-subheading">Start with a category and we will tailor the stylist list.</div>
             </div>
             <button type="button" className="text-link" onClick={handleSelectStylist}>
               Select Stylist
@@ -162,8 +185,8 @@ const Home = () => {
         <section className="page-section page-section--stylists">
           <div className="section-header-row section-header-row--wide">
             <div>
-              <div className="section-heading section-heading--tight">popular in your city</div>
-              <div className="section-subheading">Horizontal cards on mobile, grid on larger screens</div>
+              <div className="section-heading section-heading--tight">Featured stylists</div>
+              <div className="section-subheading">Handpicked specialists available for {selectedCategory || 'your'} appointments.</div>
             </div>
             <button type="button" className="text-link" onClick={handleSelectStylist}>
               View all

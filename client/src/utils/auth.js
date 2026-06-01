@@ -110,7 +110,7 @@ export const getRoleNavigationItems = (role = '') => {
 
   return [
     { label: 'Home', target: '/' },
-    { label: 'Orders', target: '/orders' },
+    { label: 'Bookings', target: '/bookings' },
     { label: 'Profile', target: '/profile' },
     sharedLogout,
   ];

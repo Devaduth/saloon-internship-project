@@ -134,7 +134,15 @@ const PremiumBooking = ({ stylistId = '', selectedSlot = null, onSlotSelect, ini
 
         <div className="premium-booking__slots">
           <div className="slots-header">
-            <h4>Available slots</h4>
+            <div>
+              <h4>Available slots</h4>
+              <div className="slot-legend">
+                <span className="slot-legend__item slot-legend__item--available">Available</span>
+                <span className="slot-legend__item slot-legend__item--selected">Selected</span>
+                <span className="slot-legend__item slot-legend__item--booked">Booked/Past</span>
+                <span className="slot-legend__item slot-legend__item--unavailable">Unavailable</span>
+              </div>
+            </div>
             <div className="slots-sub">{new Date(selectedDate).toLocaleDateString()}</div>
           </div>
 

@@ -30,7 +30,7 @@ const ProtectedRoute = ({ allowedRoles = [] }) => {
 
   if (checking) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#fff8f3] px-6 text-center text-[#2f1b10]">
+      <div className="flex min-h-screen w-full items-center justify-center overflow-x-hidden bg-[#fff8f3] px-6 text-center text-[#2f1b10]">
         <div>
           <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-[#ffd2ae] border-t-[#ff7a18]" />
           <p className="mt-4 text-sm font-medium text-[#7f6658]">Checking authentication...</p>

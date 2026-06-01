@@ -14,6 +14,7 @@ const TopNavbar = ({ active = 'Home', onNavigate }) => {
   return (
     <header className="top-navbar desktop-only" aria-label="Desktop navigation">
       <div className="top-navbar__brand">
+        <div className="top-navbar__logo">SB</div>
         <div>
           <div className="top-navbar__name">Salon Book</div>
           <div className="top-navbar__tagline">Modern booking experience</div>

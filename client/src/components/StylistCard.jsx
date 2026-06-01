@@ -9,10 +9,14 @@ const StylistCard = ({
   onGallery,
 }) => {
   const ratingValue = typeof stylist.rating === 'number' ? stylist.rating.toFixed(1) : stylist.rating;
+  const services = Array.isArray(stylist.services) ? stylist.services.slice(0, 3) : [];
+  const image = stylist.image || stylist.stylist_photo || 'https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?auto=format&fit=crop&w=720&q=80';
+  const experience = stylist.experience ? `${stylist.experience} years experience` : 'Experienced professional';
+  const availabilityLabel = (stylist.status || '').toUpperCase() === 'AA' ? 'Available today' : 'Limited availability';
 
   const renderCompactCard = () => (
     <article className="stylist-card stylist-card--compact-view">
-      <img src={stylist.image} alt={stylist.name} className="stylist-card__image" />
+      <img src={image} alt={stylist.name} className="stylist-card__image" />
       <div className="stylist-card__body">
         <div className="stylist-card__name-row">
           <h3>{stylist.name}</h3>
@@ -32,8 +36,9 @@ const StylistCard = ({
   return (
     <article className={`stylist-card stylist-card--detail ${selected ? 'selected' : ''}`}>
       <div className="stylist-card__detail-media">
-        <img src={stylist.image || stylist.stylist_photo} alt={stylist.name} className="stylist-card__detail-image" />
-        <div className="stylist-card__detail-rating">★ {ratingValue}</div>
+        <img src={image} alt={stylist.name} className="stylist-card__detail-image" />
+        <div className="stylist-card__detail-rating">★ {ratingValue || '4.8'}</div>
+        <div className="stylist-card__availability">{availabilityLabel}</div>
       </div>
       <div className="stylist-card__detail-body">
         <div className="stylist-card__detail-header">
@@ -45,9 +50,17 @@ const StylistCard = ({
         </div>
 
         <div className="stylist-card__detail-meta">
-          <span>{stylist.experience} years experience</span>
+          <span>{experience}</span>
           <span>{stylist.area || stylist.branch_name || 'Near you'}</span>
         </div>
+
+        {services.length ? (
+          <div className="stylist-card__services" aria-label="Services offered">
+            {services.map((service) => (
+              <span key={service.id || service.name || service.service_name}>{service.name || service.service_name}</span>
+            ))}
+          </div>
+        ) : null}
 
         <p className="stylist-card__summary">{stylist.bio || 'Professional stylist available for booking and service selection.'}</p>
 
