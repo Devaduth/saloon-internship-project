@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { getAvailableSlots } from '../services/slotService';
+import { getSlotAvailabilityState } from '../utils/slotAvailability';
 
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -36,6 +37,7 @@ const PremiumBooking = ({ stylistId = '', selectedSlot = null, onSlotSelect, ini
   const [selectedDate, setSelectedDate] = useState(initialDate ? formatDateKey(new Date(initialDate)) : formatDateKey(new Date()));
   const [slotsForDate, setSlotsForDate] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   const days = useMemo(() => rangeDaysForMonth(visibleMonth), [visibleMonth]);
 
@@ -68,7 +70,19 @@ const PremiumBooking = ({ stylistId = '', selectedSlot = null, onSlotSelect, ini
     };
   }, [selectedDate, stylistId]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   const displaySlots = slotsForDate || [];
+
+  const formatSlotLabel = (slot = {}) => {
+    if (slot.isBooked) return 'Booked';
+    if (slot.manuallyDisabled) return 'Unavailable';
+    if (slot.isPast) return 'Passed';
+    return 'Available';
+  };
 
   const prevMonth = () => {
     setVisibleMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
@@ -130,12 +144,13 @@ const PremiumBooking = ({ stylistId = '', selectedSlot = null, onSlotSelect, ini
             ) : displaySlots.length ? (
               <div className="slots-grid">
                 {displaySlots.map((slot) => {
-                  const status = String(slot.status || (slot.is_booked ? 'BOOKED' : slot.is_active === false ? 'UNAVAILABLE' : 'AVAILABLE')).toUpperCase();
                   const start = slot.start_time || slot.start || slot.startTime || '';
                   const end = slot.end_time || slot.end || slot.endTime || '';
                   const id = slot._id || slot.id || `${start}-${end}`;
                   const active = selectedSlot && (selectedSlot.slot_id === id || selectedSlot._id === id || selectedSlot.id === id || (selectedSlot.start_time === start && selectedSlot.end_time === end));
-                  const unavailable = status !== 'AVAILABLE';
+                  const availability = getSlotAvailabilityState({ slot, selectedDate, now });
+                  const unavailable = !availability.available;
+                  const status = availability.statusClass.toUpperCase();
 
                   return (
                     <button
@@ -146,7 +161,8 @@ const PremiumBooking = ({ stylistId = '', selectedSlot = null, onSlotSelect, ini
                       disabled={unavailable}
                     >
                       <div className="slot-card__time">{start} - {end}</div>
-                      <div className="slot-card__meta">{slot.duration ? slot.duration : '60 min'}{status ? ` • ${status.toLowerCase()}` : ''}</div>
+                      <div className="slot-card__meta">{slot.duration ? slot.duration : '60 min'}</div>
+                      <div className={`slot-card__status slot-card__status--${availability.statusClass}`}>{availability.label}</div>
                     </button>
                   );
                 })}

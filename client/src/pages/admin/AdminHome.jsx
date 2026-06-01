@@ -10,6 +10,7 @@ import AdminTopbar from '../../components/admin/AdminTopbar';
 import { getSalons } from '../../services/salonService';
 import { SALON_CATEGORIES } from '../../config/appConstants';
 import { clearAuthStorage } from '../../utils/auth';
+import { getSlotAvailabilityState } from '../../utils/slotAvailability';
 import {
   assignAdminSlot,
   createAdminService,
@@ -133,6 +134,8 @@ const AdminHome = () => {
   const [bookingDate, setBookingDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [bookingStatusFilter, setBookingStatusFilter] = useState('');
   const [bookingStaffFilter, setBookingStaffFilter] = useState('');
+  const [slotStylistFilter, setSlotStylistFilter] = useState('');
+  const [now, setNow] = useState(() => new Date());
 
   const [staffModalOpen, setStaffModalOpen] = useState(false);
   const [staffEditingId, setStaffEditingId] = useState('');
@@ -160,13 +163,17 @@ const AdminHome = () => {
       return slots;
     }
 
-    return slots.filter((item) => String(item.salon_id || item.salonId || '') === String(selectedSalonId));
-  }, [slots, selectedSalonId]);
+    return slots.filter((item) => {
+      const salonMatch = String(item.salon_id || item.salonId || '') === String(selectedSalonId);
+      const stylistMatch = !slotStylistFilter || String(item.stylist_id?._id || item.stylist_id?.id || item.stylist_id || item.staffId || '') === String(slotStylistFilter);
+      return salonMatch && stylistMatch;
+    });
+  }, [slots, selectedSalonId, slotStylistFilter]);
 
   const slotSummary = useMemo(() => {
     const counts = visibleSlots.reduce(
       (accumulator, slot) => {
-        const status = String(slot.status || (slot.is_booked ? 'BOOKED' : slot.is_active === false ? 'UNAVAILABLE' : 'AVAILABLE')).toUpperCase();
+        const status = getSlotAvailabilityState({ slot, selectedDate: slotViewDate, now }).statusClass.toUpperCase();
 
         if (status === 'BOOKED') accumulator.booked += 1;
         else if (status === 'EXPIRED') accumulator.expired += 1;
@@ -179,13 +186,13 @@ const AdminHome = () => {
     );
 
     return [
-      { label: 'Total Slots', value: counts.total, detail: 'All slots for the selected salon and date' },
+      { label: 'Total Slots', value: counts.total, detail: 'All slots for the selected stylist and date' },
       { label: 'Available Slots', value: counts.available, detail: 'Ready for booking' },
       { label: 'Booked Slots', value: counts.booked, detail: 'Reserved by customers' },
       { label: 'Unavailable Slots', value: counts.unavailable, detail: 'Disabled by admin or staff' },
       { label: 'Expired Slots', value: counts.expired, detail: 'Past time slots' },
     ];
-  }, [visibleSlots]);
+  }, [visibleSlots, now, slotViewDate]);
 
   const overviewStats = useMemo(() => {
     const activeStaff = salonStaff.filter((item) => (item.status || '').toUpperCase() === 'AA').length;
@@ -215,7 +222,7 @@ const AdminHome = () => {
           staffId: bookingStaffFilter || undefined,
           bookingStatus: bookingStatusFilter || undefined,
         }),
-        getAdminSlots({ salonId: selectedSalonId || undefined, date: slotViewDate, includeAll: true }),
+        getAdminSlots({ salonId: selectedSalonId || undefined, stylistId: slotStylistFilter || undefined, date: slotViewDate, includeAll: true }),
       ]);
 
       const nextSalons = Array.isArray(salonResp?.data?.data)
@@ -254,13 +261,18 @@ const AdminHome = () => {
   useEffect(() => {
     loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [refreshTick, selectedSalonId, slotViewDate, bookingDate, bookingStaffFilter, bookingStatusFilter]);
+  }, [refreshTick, selectedSalonId, slotViewDate, bookingDate, bookingStaffFilter, bookingStatusFilter, slotStylistFilter]);
 
   useEffect(() => {
     if (!selectedSalonId && salons[0]?._id) {
       setSelectedSalonId(salons[0]._id);
     }
   }, [salons, selectedSalonId]);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (selectedSalon) {
@@ -284,6 +296,17 @@ const AdminHome = () => {
       });
     }
   }, [selectedSalon]);
+
+  useEffect(() => {
+    if (!salonStaff.length) {
+      setSlotStylistFilter('');
+      return;
+    }
+
+    if (!slotStylistFilter || !salonStaff.some((item) => String(item._id) === String(slotStylistFilter))) {
+      setSlotStylistFilter(salonStaff[0]._id);
+    }
+  }, [salonStaff, slotStylistFilter]);
 
   const handleLogout = () => {
     clearAuthStorage();
@@ -768,6 +791,7 @@ const AdminHome = () => {
               columns={[
                 { key: 'bookingId', label: 'Booking ID' },
                 { key: 'customer', label: 'Customer' },
+                { key: 'stylist', label: 'Stylist' },
                 { key: 'phone', label: 'Phone' },
                 { key: 'services', label: 'Services' },
                 { key: 'category', label: 'Category' },
@@ -785,6 +809,10 @@ const AdminHome = () => {
 
                 if (column.key === 'customer') {
                   return row.customerId?.name || row.customerId?.mobile_number || row.customer_id?.name || row.customer_id?.mobile_number || 'Customer';
+                }
+
+                if (column.key === 'stylist') {
+                  return row.staffId?.name || row.staffId?.fullName || row.staffId?.stylist_name || row.staffId?.email || '—';
                 }
 
                 if (column.key === 'phone') {
@@ -840,6 +868,20 @@ const AdminHome = () => {
 
             <div className="admin-slot-toolbar">
               <label className="admin-field">
+                <span>Selected stylist</span>
+                <select className="admin-select" value={slotStylistFilter} onChange={(event) => setSlotStylistFilter(event.target.value)}>
+                  {salonStaff.length ? (
+                    salonStaff.map((staffMember) => (
+                      <option key={staffMember._id} value={staffMember._id}>
+                        {staffMember.name || staffMember.fullName || staffMember.email || 'Staff'}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">No stylists available</option>
+                  )}
+                </select>
+              </label>
+              <label className="admin-field">
                 <span>Selected date</span>
                 <input className="admin-input" type="date" value={slotViewDate} onChange={(event) => setSlotViewDate(event.target.value)} />
               </label>
@@ -853,11 +895,13 @@ const AdminHome = () => {
 
             <div className="slot-grid">
               {visibleSlots.map((slot) => {
-                const status = String(slot.status || (slot.is_booked ? 'BOOKED' : slot.is_active === false ? 'UNAVAILABLE' : 'AVAILABLE')).toUpperCase();
-                const isBooked = status === 'BOOKED';
-                const isUnavailable = status === 'UNAVAILABLE';
-                const isExpired = status === 'EXPIRED';
-                const canToggle = status === 'AVAILABLE' || status === 'UNAVAILABLE';
+                const availability = getSlotAvailabilityState({ slot, selectedDate: slotViewDate, now });
+                const status = availability.statusClass.toUpperCase();
+                const isBooked = availability.isBooked;
+                const isUnavailable = availability.manuallyDisabled;
+                const isExpired = availability.isPast;
+                const canToggle = availability.available || isUnavailable;
+                const stylistName = slot.stylist_id?.name || slot.stylist_id?.fullName || slot.stylist_id?.email || slot.staffId?.name || 'Staff';
 
                 return (
                   <button
@@ -880,11 +924,11 @@ const AdminHome = () => {
                       }
                     }}
                     disabled={!canToggle}
-                    title={isBooked ? 'Booked' : isExpired ? 'Expired' : 'Click to toggle availability.'}
+                    title={isBooked ? 'Booked' : isUnavailable ? 'Unavailable' : isExpired ? 'Passed' : 'Click to toggle availability.'}
                   >
                     <span className="slot-grid__time">{slot.start_time || slot.startTime} - {slot.end_time || slot.endTime}</span>
-                    <span className={`slot-grid__status slot-grid__status--${status.toLowerCase()}`}>{status.toLowerCase()}</span>
-                    <span className="slot-grid__meta">{slot.stylist_id?.name || slot.staffId?.name || 'Staff'}</span>
+                    <span className={`slot-grid__status slot-grid__status--${availability.statusClass}`}>{availability.label}</span>
+                    <span className="slot-grid__meta">{stylistName}</span>
                   </button>
                 );
               })}

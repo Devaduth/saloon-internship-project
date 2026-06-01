@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "nodemon server.js",
     "start": "node server.js",
-    "seed:logins": "node scripts/seedDemoAccounts.js"
+    "seed:logins": "node scripts/seedDemoAccounts.js",
+    "migrate:drop-customer-index": "node scripts/dropCustomerIdIndex.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

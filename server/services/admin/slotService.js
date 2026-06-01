@@ -39,6 +39,31 @@ const parseTimeToMinutes = (value = '') => {
   return hours * 60 + minutes;
 };
 
+const formatDateKey = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getSlotDateTime = (slot = {}) => {
+  const dateValue = String(slot.date || slot.slotDate || '').trim();
+  const startTime = String(slot.start_time || slot.startTime || '').trim();
+  const startMinutes = parseTimeToMinutes(startTime);
+
+  if (!dateValue || startMinutes === null) {
+    return null;
+  }
+
+  const slotDateTime = new Date(`${dateValue}T00:00:00`);
+  if (Number.isNaN(slotDateTime.getTime())) {
+    return null;
+  }
+
+  slotDateTime.setHours(Math.floor(startMinutes / 60), startMinutes % 60, 0, 0);
+  return slotDateTime;
+};
+
 const formatMinutesToTime = (minutes = 0) => {
   const safeMinutes = Math.max(0, Math.round(minutes));
   const hours24 = Math.floor(safeMinutes / 60) % 24;
@@ -46,13 +71,6 @@ const formatMinutesToTime = (minutes = 0) => {
   const period = hours24 >= 12 ? 'PM' : 'AM';
   const hours12 = hours24 % 12 || 12;
   return `${String(hours12).padStart(2, '0')}:${mins} ${period}`;
-};
-
-const formatDateKey = (date = new Date()) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
 };
 
 const toDateTimeMinutes = (slot = {}) => {
@@ -69,30 +87,25 @@ const toDateTimeMinutes = (slot = {}) => {
 
 export const computeSlotStatus = (slot = {}, now = new Date()) => {
   const rawStatus = String(slot.status || '').trim().toUpperCase();
+  const dateValue = String(slot.date || slot.slotDate || '').trim();
+  const today = formatDateKey(now);
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const normalized = toDateTimeMinutes(slot);
+  const isPast = Boolean(normalized) && (normalized.dateValue < today || (normalized.dateValue === today && normalized.startMinutes < currentMinutes));
 
   if (rawStatus === 'BOOKED' || slot.is_booked || slot.booking_id) {
     return 'BOOKED';
-  }
-
-  const normalized = toDateTimeMinutes(slot);
-  if (normalized) {
-    const today = formatDateKey(now);
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    if (normalized.dateValue < today) {
-      return 'EXPIRED';
-    }
-
-    if (normalized.dateValue === today && normalized.startMinutes < currentMinutes) {
-      return 'EXPIRED';
-    }
   }
 
   if (rawStatus === 'UNAVAILABLE' || rawStatus === 'BREAK' || slot.is_active === false) {
     return 'UNAVAILABLE';
   }
 
-  if (rawStatus === 'EXPIRED') {
+  if (isPast) {
+    return 'EXPIRED';
+  }
+
+  if (rawStatus === 'EXPIRED' || (dateValue && normalized && normalized.dateValue < today)) {
     return 'EXPIRED';
   }
 
@@ -101,14 +114,26 @@ export const computeSlotStatus = (slot = {}, now = new Date()) => {
 
 export const normalizeSlotForResponse = (slot = {}, now = new Date()) => {
   const status = computeSlotStatus(slot, now);
+  const slotDateTime = getSlotDateTime(slot);
+  const rawStatus = String(slot.status || '').trim().toUpperCase();
+  const manuallyDisabled = rawStatus === 'UNAVAILABLE' || rawStatus === 'BREAK' || slot.is_active === false;
+  const isBooked = status === 'BOOKED';
+  const isPast = status === 'EXPIRED';
+  const available = !isBooked && !manuallyDisabled && !isPast;
 
   return {
     ...slot,
+    time: slot.start_time || slot.startTime || slot.time || '',
+    slotDateTime: slotDateTime ? slotDateTime.toISOString() : '',
     status,
     availabilityStatus: status,
-    is_booked: status === 'BOOKED',
-    is_active: status === 'AVAILABLE',
-    booking_id: status === 'BOOKED' ? slot.booking_id || '' : slot.booking_id || '',
+    isBooked,
+    isPast,
+    manuallyDisabled,
+    available,
+    is_booked: isBooked,
+    is_active: available,
+    booking_id: isBooked ? slot.booking_id || '' : slot.booking_id || '',
   };
 };
 
@@ -326,8 +351,28 @@ export const listSlots = async (filters = {}, currentRole = '') => {
     query.status = 'AVAILABLE';
   }
 
-  const slots = await Slot.find(query).sort({ date: 1, start_time: 1 }).populate('stylist_id').lean({ virtuals: true });
-  return sanitizeDocuments(slots.map((slot) => normalizeSlotForResponse(slot)));
+  const slots = await Slot.find(query).populate('stylist_id').lean({ virtuals: true });
+  const normalizedSlots = slots
+    .map((slot) => normalizeSlotForResponse(slot))
+    .sort((left, right) => {
+      const leftDateTime = getSlotDateTime(left);
+      const rightDateTime = getSlotDateTime(right);
+
+      if (leftDateTime && rightDateTime) {
+        return leftDateTime.getTime() - rightDateTime.getTime();
+      }
+
+      if (leftDateTime) return -1;
+      if (rightDateTime) return 1;
+
+      return String(left.date || '').localeCompare(String(right.date || '')) || String(left.start_time || '').localeCompare(String(right.start_time || ''));
+    });
+
+  const filteredSlots = filters.availableOnly === 'true' || filters.availableOnly === true
+    ? normalizedSlots.filter((slot) => slot.available)
+    : normalizedSlots;
+
+  return sanitizeDocuments(filteredSlots);
 };
 
 export const updateSlotAvailability = async (slotId, input = {}) => {

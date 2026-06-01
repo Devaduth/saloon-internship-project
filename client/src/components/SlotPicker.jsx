@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { getAvailableSlots } from '../services/slotService';
+import { getSlotAvailabilityState } from '../utils/slotAvailability';
 
 const SlotPicker = ({ stylistId, onSelect }) => {
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
     let active = true;
@@ -35,6 +37,11 @@ const SlotPicker = ({ stylistId, onSelect }) => {
     };
   }, [date, stylistId]);
 
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <div className="slot-picker">
       <label>
@@ -50,19 +57,19 @@ const SlotPicker = ({ stylistId, onSelect }) => {
             <div>No slots available for selected date.</div>
           ) : (
             slots.map((s) => {
-              const status = String(s.status || (s.is_booked ? 'BOOKED' : s.is_active === false ? 'UNAVAILABLE' : 'AVAILABLE')).toUpperCase();
-              const isClickable = status === 'AVAILABLE';
+              const availability = getSlotAvailabilityState({ slot: s, selectedDate: date, now });
+              const isClickable = availability.available;
 
               return (
                 <button
                   key={s._id}
                   type="button"
                   onClick={() => isClickable && onSelect?.({ slot_id: s._id, ...s })}
-                  className={`slot-item slot-item--${status.toLowerCase()}`}
+                  className={`slot-item slot-item--${availability.statusClass}`}
                   disabled={!isClickable}
                 >
                   <span className="slot-item__time">{s.start_time} - {s.end_time}</span>
-                  <span className="slot-item__status">{status.toLowerCase()}</span>
+                  <span className={`slot-item__status slot-item__status--${availability.statusClass}`}>{availability.label}</span>
                 </button>
               );
             })

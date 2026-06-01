@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import AdminSectionCard from '../../components/admin/AdminSectionCard';
 import AdminTable from '../../components/admin/AdminTable';
 import { clearAuthStorage } from '../../utils/auth';
+import { getSlotAvailabilityState } from '../../utils/slotAvailability';
 import { getStaffAppointments, getStaffSlots, updateStaffAppointmentStatus, updateStaffSlotAvailability } from '../../services/staffService';
 
 const BOOKING_STATUSES = ['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'];
@@ -16,6 +17,7 @@ const StaffHome = () => {
   const [refreshTick, setRefreshTick] = useState(0);
   const [appointmentDate, setAppointmentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [slotDate, setSlotDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [now, setNow] = useState(() => new Date());
 
   const refresh = () => setRefreshTick((value) => value + 1);
 
@@ -70,6 +72,11 @@ const StaffHome = () => {
   }, [refreshTick, slotDate, appointmentDate]);
 
   useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slotDate]);
@@ -84,7 +91,7 @@ const StaffHome = () => {
   const slotSummary = useMemo(() => {
     const counts = slots.reduce(
       (accumulator, slot) => {
-        const status = String(slot.status || (slot.is_booked ? 'BOOKED' : slot.is_active === false ? 'UNAVAILABLE' : 'AVAILABLE')).toUpperCase();
+        const status = getSlotAvailabilityState({ slot, selectedDate: slotDate, now }).statusClass.toUpperCase();
 
         if (status === 'BOOKED') accumulator.booked += 1;
         else if (status === 'EXPIRED') accumulator.expired += 1;
@@ -103,9 +110,9 @@ const StaffHome = () => {
       { label: 'Unavailable Slots', value: counts.unavailable, detail: 'Disabled manually' },
       { label: 'Expired Slots', value: counts.expired, detail: 'Past time slots' },
     ];
-  }, [slots]);
+  }, [now, slotDate, slots]);
 
-  const activeSlots = useMemo(() => slots.filter((slot) => String(slot.status || '').toUpperCase() === 'AVAILABLE'), [slots]);
+  const activeSlots = useMemo(() => slots.filter((slot) => getSlotAvailabilityState({ slot, selectedDate: slotDate, now }).available), [now, slotDate, slots]);
 
   const handleLogout = () => {
     clearAuthStorage();
@@ -252,11 +259,12 @@ const StaffHome = () => {
 
             <div className="slot-grid">
               {slots.length ? slots.map((row) => {
-                const status = String(row.status || (row.is_booked ? 'BOOKED' : row.is_active === false ? 'UNAVAILABLE' : 'AVAILABLE')).toUpperCase();
-                const isBooked = status === 'BOOKED';
-                const isUnavailable = status === 'UNAVAILABLE';
-                const isExpired = status === 'EXPIRED';
-                const canToggle = status === 'AVAILABLE' || status === 'UNAVAILABLE';
+                const availability = getSlotAvailabilityState({ slot: row, selectedDate: slotDate, now });
+                const status = availability.statusClass.toUpperCase();
+                const isBooked = availability.isBooked;
+                const isUnavailable = availability.manuallyDisabled;
+                const isExpired = availability.isPast;
+                const canToggle = availability.available || isUnavailable;
 
                 return (
                   <button
@@ -277,10 +285,10 @@ const StaffHome = () => {
                         // handled in handler
                       }
                     }}
-                    title={isBooked ? 'Booked' : isExpired ? 'Expired' : 'Click to toggle availability.'}
+                    title={isBooked ? 'Booked' : isUnavailable ? 'Unavailable' : isExpired ? 'Passed' : 'Click to toggle availability.'}
                   >
                     <span className="slot-grid__time">{row.start_time || row.startTime || '—'} - {row.end_time || row.endTime || '—'}</span>
-                    <span className={`slot-grid__status slot-grid__status--${status.toLowerCase()}`}>{status.toLowerCase()}</span>
+                    <span className={`slot-grid__status slot-grid__status--${availability.statusClass}`}>{availability.label}</span>
                     <span className="slot-grid__meta">{row.date || slotDate}</span>
                   </button>
                 );

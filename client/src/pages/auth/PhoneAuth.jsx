@@ -212,7 +212,7 @@ const PhoneAuth = () => {
                 className={`auth-button ${mode === LOGIN_MODES.customer ? 'auth-button--full' : ''}`}
                 style={{ opacity: mode === LOGIN_MODES.customer ? 1 : 0.72 }}
               >
-                Continue with Phone
+                CUSTOMER LOGIN
               </button>
               <button
                 type="button"
@@ -260,7 +260,7 @@ const PhoneAuth = () => {
                   {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
 
                   <button type="button" onClick={startCustomerOtp} disabled={loading} className="auth-button auth-button--full">
-                    {loading ? 'Sending...' : 'Continue with Phone'}
+                    {loading ? 'Sending...' : 'CUSTOMER LOGIN'}
                   </button>
 
                   <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between' }}>

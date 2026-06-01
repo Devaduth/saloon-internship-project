@@ -52,8 +52,11 @@ export const createBooking = async (req, res, next) => {
     slot.status = 'BOOKED';
     await slot.save();
 
+    const customerId = req.body.customer_id || req.customer?._id || new mongoose.Types.ObjectId();
+
     const booking = await Booking.create({
-      customerId: req.body.customer_id || req.customer?._id,
+      customerId,
+      customer_id: customerId,
       salonId: resolvedSalonId,
       staffId,
       slotId: slot._id,

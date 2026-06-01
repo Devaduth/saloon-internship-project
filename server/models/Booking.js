@@ -15,7 +15,8 @@ const bookingServiceSchema = new mongoose.Schema(
 
 const bookingSchema = new mongoose.Schema(
   {
-    customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true, index: true },
+    customer_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
+    customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer', required: true },
     salonId: { type: mongoose.Schema.Types.ObjectId, ref: 'Salon', required: false, default: null, index: true },
     staffId: { type: mongoose.Schema.Types.ObjectId, ref: 'Staff', required: true, index: true },
     slotId: { type: mongoose.Schema.Types.ObjectId, ref: 'Slot', default: null, index: true },
@@ -52,10 +53,16 @@ const bookingSchema = new mongoose.Schema(
   }
 );
 
-bookingSchema.virtual('customer_id').get(function getCustomerId() {
-  return this.customerId ? this.customerId.toString() : '';
-}).set(function setCustomerId(value) {
-  this.customerId = value;
+bookingSchema.pre('validate', function syncCustomerFields(next) {
+  if (this.customerId && !this.customer_id) {
+    this.customer_id = this.customerId;
+  }
+
+  if (this.customer_id && !this.customerId) {
+    this.customerId = this.customer_id;
+  }
+
+  next();
 });
 
 bookingSchema.virtual('salon_id').get(function getSalonId() {

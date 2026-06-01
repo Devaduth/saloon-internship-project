@@ -135,7 +135,7 @@ const getSlotTiming = (slot = null) => {
 export const createAppointment = async (request, response, next) => {
   try {
     const { main_category = '', sub_category = '' } = request.body;
-    const customerId = request.body.customer_id || new mongoose.Types.ObjectId().toString();
+    const customerId = request.body.customer_id || request.customer?._id || new mongoose.Types.ObjectId();
     const createdBy = request.body.created_by || request.body.user_id || 'guest-user';
     const modifiedBy = request.body.modified_by || createdBy;
     const staffId = request.body.staff_id || request.body.stylist_id || '';
@@ -153,6 +153,7 @@ export const createAppointment = async (request, response, next) => {
 
     const appointment = await Appointment.create({
       customerId,
+      customer_id: customerId,
       staffId,
       salonId,
       slotId,
@@ -241,6 +242,8 @@ export const updateAppointment = async (request, response, next) => {
     appointment.modifiedBy = request.body.modified_by || appointment.modifiedBy || 'guest-user';
     appointment.bookingStatus = request.body.booking_status || appointment.bookingStatus;
     appointment.appointmentId = appointment.appointmentId || appointment._id.toString();
+    appointment.customer_id = appointment.customer_id || appointment.customerId;
+    appointment.customerId = appointment.customerId || appointment.customer_id;
 
     await appointment.save();
 

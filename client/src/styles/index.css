@@ -342,9 +342,18 @@ select {
 .admin-main {
   position: relative;
   z-index: 1;
-  padding: 24px;
+  padding: 24px 28px 24px 24px;
   display: grid;
   gap: 18px;
+}
+
+.admin-main > * {
+  min-width: 0;
+}
+
+.admin-main .admin-section-card,
+.admin-main .admin-topbar {
+  width: 100%;
 }
 
 .admin-topbar {
@@ -455,7 +464,7 @@ select {
 .admin-stat-card--rose { background: linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(255, 229, 221, 0.9)); }
 
 .admin-section-card {
-  padding: 22px;
+  padding: 22px 20px 22px 22px;
 }
 
 .admin-section-card__header {
@@ -481,6 +490,7 @@ select {
   overflow: auto;
   border-radius: 22px;
   border: 1px solid rgba(255, 122, 26, 0.1);
+  background: rgba(255, 255, 255, 0.92);
 }
 
 .admin-table {
@@ -1156,6 +1166,8 @@ select {
 .slot-card__status--unavailable{background:#ffe5e5;color:#a62a2a}
 .slot-card__status--booked{background:#e7ebf0;color:#4a5568}
 .slot-card__status--expired{background:#ececec;color:#69707f}
+.slot-card--active .slot-card__status--available{background:rgba(255,122,26,0.14);color:var(--accent-deep)}
+.slot-card--active{transform:translateY(-2px)}
 .slots-empty,.slots-loading{padding:12px;color:var(--muted)}
 
 .slot-item{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;width:100%;padding:12px 14px;border-radius:12px;border:1px solid #edf1f5;background:#fff;box-shadow:0 8px 20px rgba(174,92,25,0.06);cursor:pointer;transition:transform .2s ease,box-shadow .2s ease,opacity .2s ease}
@@ -1171,6 +1183,9 @@ select {
 .slot-item--unavailable .slot-item__status{background:#ffe5e5;color:#a62a2a}
 .slot-item--booked .slot-item__status{background:#e7ebf0;color:#4a5568}
 .slot-item--expired .slot-item__status{background:#ececec;color:#69707f}
+.slot-item--available.slot-item--selected,
+.slot-item--available:focus-visible{border-color:var(--accent);box-shadow:0 18px 40px rgba(242,95,10,0.18)}
+.slot-item--expired,.slot-item--booked,.slot-item--unavailable{opacity:.68}
 
 .slot-legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .slot-legend__item{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:6px 10px;border-radius:999px;background:#f4f5f7;color:#52606d}
@@ -1183,6 +1198,13 @@ select {
 .slot-grid__status{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:4px 8px;border-radius:999px;align-self:flex-start}
 .slot-grid__status--available{background:#dff8e7;color:#18774a}
 .slot-grid__status--unavailable{background:#ffe5e5;color:#a62a2a}
+.slot-grid__status--expired{background:#ececec;color:#69707f}
+.slot-grid__status--booked{background:#e7ebf0;color:#4a5568}
+.slot-grid__item--expired{background:linear-gradient(180deg,#f5f5f5,#ffffff);border-color:#d7dce3;opacity:.62}
+.slot-grid__item--booked{background:linear-gradient(180deg,#f3f4f6,#ffffff);border-color:#d7dce3;opacity:.72}
+.slot-grid__item--unavailable{background:linear-gradient(180deg,#fff5f5,#ffffff);border-color:#f0c1c1}
+.slot-grid__item--available{background:linear-gradient(180deg,#f4fff7,#ffffff);border-color:#bde8cc}
+.slot-grid__item--available.slot-grid__item--active{border-color:var(--accent);box-shadow:0 18px 40px rgba(242,95,10,0.18)}
 .slot-grid__status--booked{background:#e7ebf0;color:#4a5568}
 .slot-grid__status--expired{background:#ececec;color:#69707f}
 .slot-grid__item--locked{opacity:.72}
