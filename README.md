@@ -79,3 +79,6 @@ The server will reserve the slot and create a booking record with `booking_statu
 - `status` defaults to `AA`.
 - `created_at` and `modified_at` are managed through MongoDB timestamps.
 - The stylist listing screen is included as a ready-to-expand placeholder.
+
+
+created by Devaduth
