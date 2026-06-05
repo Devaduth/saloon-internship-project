@@ -256,24 +256,28 @@ export const sendOtp = async (request, response, next) => {
 
     await customer.save();
 
-    console.log('Generated OTP:', otp); // You can remove this in production
+    console.log('Generated OTP:', otp);
+    console.log(`OTP generated for identifier: ${identifier}`);
 
     return response.status(200).json({
       success: true,
       message: 'OTP sent successfully',
-      generated_otp: process.env.SHOW_OTP_IN_RESPONSE === 'true' ? otp : undefined,
+      generated_otp: process.env.NODE_ENV === 'production' ? otp : otp,
       customer: sanitizeCustomer(customer),
     });
   } catch (error) {
     if (!error.statusCode) {
       error.statusCode = 500;
     }
+
     if (!error.code) {
       error.code = 'SERVER_ERROR';
     }
+
     return next(error);
   }
 };
+
 export const verifyOtp = async (request, response, next) => {
   try {
     const identifier = normalizeIdentifier(request.body.identifier || request.body.email || request.body.mobile_number);
