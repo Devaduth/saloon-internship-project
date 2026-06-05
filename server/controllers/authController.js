@@ -262,7 +262,7 @@ export const sendOtp = async (request, response, next) => {
     return response.status(200).json({
       success: true,
       message: 'OTP sent successfully',
-      generated_otp: process.env.NODE_ENV === 'production' ? otp : otp,
+      generated_otp: otp,
       customer: sanitizeCustomer(customer),
     });
   } catch (error) {
