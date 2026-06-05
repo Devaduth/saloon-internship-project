@@ -36,7 +36,7 @@ const CustomerProfile = () => {
   };
 
   return (
-    <div className="site-shell site-shell--profile app-shell min-h-screen w-full overflow-x-hidden">
+    <div className="customer-portal site-shell site-shell--profile app-shell min-h-screen w-full overflow-x-hidden">
       <TopNavbar active="Profile" onNavigate={(target) => navigate(target)} />
 
       <main className="page-main page-main--profile app-container">
@@ -44,7 +44,7 @@ const CustomerProfile = () => {
           <MobileHeader title="Profile" showBack showMenu centerTitle onBack={() => navigate(-1)} />
         </section>
 
-        <section className="profile-hero">
+        <section className="profile-hero reveal-up">
           <div className="profile-avatar">{initials}</div>
           <div>
             <div className="page-kicker">Customer profile</div>
@@ -53,7 +53,7 @@ const CustomerProfile = () => {
           </div>
         </section>
 
-        <section className="profile-layout">
+        <section className="profile-layout reveal-up reveal-delay-1">
           <article className="profile-card">
             <div className="section-header-row section-header-row--wide">
               <div>

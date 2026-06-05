@@ -11,20 +11,19 @@ const TopNavbar = ({ active = 'Home', onNavigate }) => {
     navigate(getAuthLoginPath(role), { replace: true });
   };
 
+  const isCustomerNav = role === 'customer' || !role;
+  const visibleNavItems = isCustomerNav ? navItems.filter((item) => ['Home', 'Bookings', 'Profile', 'Logout'].includes(item.label)) : navItems;
+
   return (
     <header className="top-navbar desktop-only" aria-label="Desktop navigation">
-      <div className="top-navbar__brand">
-        <div className="top-navbar__logo">SB</div>
-        <div>
-          <div className="top-navbar__name">Salon Book</div>
-          <div className="top-navbar__tagline">Modern booking experience</div>
-        </div>
-      </div>
+      <button type="button" className="top-navbar__brand" onClick={() => onNavigate?.('/')}>
+        <span className="top-navbar__name">SalonBook</span>
+      </button>
 
       <nav className="top-navbar__links" aria-label="Primary">
         {isAuthenticated ? (
           <>
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               item.action === 'logout' ? (
                 <button key={item.label} type="button" className="top-navbar__link top-navbar__link--logout" onClick={handleLogout}>
                   {item.label}
@@ -40,10 +39,15 @@ const TopNavbar = ({ active = 'Home', onNavigate }) => {
                 </button>
               )
             ))}
+            {isCustomerNav ? (
+              <button type="button" className="top-navbar__cta" onClick={() => onNavigate?.('/stylists')}>
+                Book Appointment
+              </button>
+            ) : null}
             {customer?.name ? <span className="top-navbar__badge">{customer.name}</span> : null}
           </>
         ) : (
-          <button type="button" className="top-navbar__link top-navbar__link--login" onClick={() => navigate(getAuthLoginPath('customer'))}>
+          <button type="button" className="top-navbar__cta" onClick={() => navigate(getAuthLoginPath('customer'))}>
             Login
           </button>
         )}

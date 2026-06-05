@@ -84,17 +84,25 @@ const ensureAppointmentId = async (appointment) => {
   return appointment;
 };
 
+const releaseSlot = async (slotId = '') => {
+  if (!slotId) {
+    return;
+  }
+
+  const slot = await Slot.findById(slotId);
+
+  if (slot) {
+    slot.is_booked = false;
+    slot.is_active = true;
+    slot.status = 'AVAILABLE';
+    slot.booking_id = '';
+    await slot.save();
+  }
+};
+
 const syncSlotForAppointment = async ({ nextSlotId = '', previousSlotId = '', appointmentId = '' }) => {
   if (previousSlotId && previousSlotId !== nextSlotId) {
-    const previousSlot = await Slot.findById(previousSlotId);
-
-    if (previousSlot) {
-      previousSlot.is_booked = false;
-      previousSlot.is_active = true;
-      previousSlot.status = 'AVAILABLE';
-      previousSlot.booking_id = '';
-      await previousSlot.save();
-    }
+    await releaseSlot(previousSlotId);
   }
 
   if (nextSlotId) {
@@ -104,7 +112,9 @@ const syncSlotForAppointment = async ({ nextSlotId = '', previousSlotId = '', ap
       throw new Error('Selected slot not found.');
     }
 
-    if (computeSlotStatus(slot) !== 'AVAILABLE') {
+    const slotBelongsToAppointment = slot.booking_id && String(slot.booking_id) === String(appointmentId);
+
+    if (computeSlotStatus(slot) !== 'AVAILABLE' && !slotBelongsToAppointment) {
       throw new Error('This slot has already been booked. Please select another slot.');
     }
 
@@ -167,6 +177,7 @@ export const createAppointment = async (request, response, next) => {
       totalDuration: formatMinutes(totals.totalMinutes),
       modifiedBy,
       bookingStatus: 'PENDING',
+      paymentStatus: 'NOT_STARTED',
       createdBy,
       appointmentId: '',
     });
@@ -241,13 +252,18 @@ export const updateAppointment = async (request, response, next) => {
     appointment.totalDuration = request.body.total_duration || formatMinutes(totals.totalMinutes);
     appointment.modifiedBy = request.body.modified_by || appointment.modifiedBy || 'guest-user';
     appointment.bookingStatus = request.body.booking_status || appointment.bookingStatus;
+    appointment.paymentStatus = request.body.payment_status || appointment.paymentStatus || 'NOT_STARTED';
+    appointment.paymentMethod = request.body.payment_method || appointment.paymentMethod || '';
     appointment.appointmentId = appointment.appointmentId || appointment._id.toString();
     appointment.customer_id = appointment.customer_id || appointment.customerId;
     appointment.customerId = appointment.customerId || appointment.customer_id;
 
     await appointment.save();
 
-    if (request.body.booking_status && String(request.body.booking_status).toUpperCase() === 'CANCELLED') {
+    const nextBookingStatus = String(appointment.bookingStatus || '').toUpperCase();
+    const nextPaymentStatus = String(appointment.paymentStatus || '').toUpperCase();
+
+    if (nextBookingStatus === 'CANCELLED' || nextBookingStatus === 'PAYMENT_FAILED' || nextPaymentStatus === 'FAILED') {
       await syncSlotForAppointment({ previousSlotId: nextSlotId || previousSlotId, appointmentId: appointment._id.toString() });
     } else if (nextSlotId) {
       await syncSlotForAppointment({ nextSlotId, previousSlotId, appointmentId: appointment._id.toString() });
@@ -268,3 +284,33 @@ export const updateAppointment = async (request, response, next) => {
 };
 
 export const updateAppointmentStylist = updateAppointment;
+
+export const markPaymentFailed = async (request, response, next) => {
+  try {
+    const appointment = await Appointment.findById(request.params.id);
+
+    if (!appointment) {
+      throw buildError('Appointment not found.', 'NOT_FOUND');
+    }
+
+    appointment.paymentStatus = 'FAILED';
+    appointment.bookingStatus = 'PAYMENT_FAILED';
+    appointment.modifiedBy = request.body?.modified_by || appointment.modifiedBy || 'guest-user';
+    appointment.appointmentId = appointment.appointmentId || appointment._id.toString();
+    await appointment.save();
+
+    await releaseSlot(appointment.slotId);
+
+    return response.status(200).json({
+      success: true,
+      message: 'Payment failed and slot released.',
+      data: appointment,
+    });
+  } catch (error) {
+    if (!error.code) {
+      error.code = 'SERVER_ERROR';
+    }
+
+    return next(error);
+  }
+};

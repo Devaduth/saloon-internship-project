@@ -33,10 +33,17 @@ const bookingSchema = new mongoose.Schema(
     bookingStatus: {
       type: String,
       required: true,
-      enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED'],
+      enum: ['PENDING', 'CONFIRMED', 'CANCELLED', 'COMPLETED', 'PAYMENT_FAILED'],
       default: 'PENDING',
       index: true,
     },
+    paymentStatus: {
+      type: String,
+      enum: ['NOT_STARTED', 'PAYMENT_PENDING', 'SUCCESS', 'FAILED'],
+      default: 'NOT_STARTED',
+      index: true,
+    },
+    paymentMethod: { type: String, trim: true, default: '' },
     appointmentId: { type: String, trim: true, default: '' },
     mainCategory: { type: String, trim: true, default: '' },
     subCategory: { type: String, trim: true, default: '' },
@@ -99,6 +106,18 @@ bookingSchema.virtual('booking_status').get(function getBookingStatus() {
   return this.bookingStatus || 'PENDING';
 }).set(function setBookingStatus(value) {
   this.bookingStatus = value;
+});
+
+bookingSchema.virtual('payment_status').get(function getPaymentStatus() {
+  return this.paymentStatus || 'NOT_STARTED';
+}).set(function setPaymentStatus(value) {
+  this.paymentStatus = value;
+});
+
+bookingSchema.virtual('payment_method').get(function getPaymentMethod() {
+  return this.paymentMethod || '';
+}).set(function setPaymentMethod(value) {
+  this.paymentMethod = value;
 });
 
 bookingSchema.virtual('selected_services').get(function getSelectedServices() {

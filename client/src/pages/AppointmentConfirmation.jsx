@@ -1,11 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import BottomNavbar from '../components/BottomNavbar';
 import ChatModal from '../components/ChatModal';
 import ConfirmBookingButton from '../components/ConfirmBookingButton';
 import ContactActions from '../components/ContactActions';
-import DateTimePicker from '../components/DateTimePicker';
 import PremiumBooking from '../components/PremiumBooking';
 import MobileHeader from '../components/MobileHeader';
 import PriceSummary from '../components/PriceSummary';
@@ -145,12 +144,8 @@ const AppointmentConfirmation = () => {
   const [appointmentDate, setAppointmentDate] = useState('');
   const [appointmentTime, setAppointmentTime] = useState('');
   const [selectedSlot, setSelectedSlot] = useState(null);
-  const [customerAddress, setCustomerAddress] = useState('');
-  const [addressEditing, setAddressEditing] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
-  const [bookingCompleteOpen, setBookingCompleteOpen] = useState(false);
-  const redirectTimerRef = useRef(null);
 
   useEffect(() => {
     let mounted = true;
@@ -220,14 +215,6 @@ const AppointmentConfirmation = () => {
     };
   }, [appointmentId, location.state?.stylist]);
 
-  useEffect(() => {
-    return () => {
-      if (redirectTimerRef.current) {
-        window.clearTimeout(redirectTimerRef.current);
-      }
-    };
-  }, []);
-
   const normalizedServices = useMemo(
     () => (selectedServices.length ? selectedServices : location.state?.selected_services?.map(normalizeService).filter(Boolean) || []),
     [location.state?.selected_services, selectedServices]
@@ -250,11 +237,6 @@ const AppointmentConfirmation = () => {
 
   const buildDateTime = () => {
     return buildDateTimeFromParts(appointmentDate, appointmentTime);
-  };
-
-  const handleSaveAddress = () => {
-    // no-op: address not required in salon booking flow
-    setAddressEditing(false);
   };
 
   const handleCallStylist = () => {
@@ -311,16 +293,32 @@ const AppointmentConfirmation = () => {
         total_duration: totalDuration,
         modified_by: createdBy,
         booking_status: 'PENDING',
+        payment_status: 'PAYMENT_PENDING',
       };
 
       const response = await updateAppointment(appointmentId, payload);
       setAppointment(response?.data || appointment);
-      setSuccessMessage('You have successfully booked the appointment.');
-      setBookingCompleteOpen(true);
-      toast.success('You have successfully booked the appointment.');
-      redirectTimerRef.current = window.setTimeout(() => {
-        navigate('/', { replace: true });
-      }, 1800);
+      setSuccessMessage('Your slot is reserved while payment is pending.');
+      toast.success('Slot reserved. Continue to payment.');
+      navigate('/payment', {
+        state: {
+          appointment_id: appointmentId,
+          customer_id: customerId,
+          created_by: createdBy,
+          stylist_id: payload.stylist_id,
+          stylist: stylist || location.state?.stylist || null,
+          selected_services: normalizedServices,
+          booking_date: appointmentDate,
+          booking_slot: appointmentTime,
+          total_price: totalPrice,
+          total_duration: totalDuration,
+          slot_id: selectedSlot.slot_id,
+          category: location.state?.category || appointment?.mainCategory || '',
+          branch_name: branchName,
+          area,
+          city,
+        },
+      });
     } catch (error) {
       const message = error?.response?.data?.message || 'Unable to confirm the appointment right now.';
       toast.error(message);
@@ -339,7 +337,7 @@ const AppointmentConfirmation = () => {
   };
 
   return (
-    <div className="site-shell site-shell--booking app-shell min-h-screen w-full overflow-x-hidden">
+    <div className="customer-portal site-shell site-shell--booking app-shell min-h-screen w-full overflow-x-hidden">
       <TopNavbar active="Home" onNavigate={(target) => navigate(target)} />
 
       <main className="page-main page-main--booking app-container">
@@ -352,8 +350,14 @@ const AppointmentConfirmation = () => {
         <section className="page-hero page-hero--booking">
           <div className="page-hero__content">
             <div className="page-kicker">Finalize appointment</div>
-            <h1>Choose a time and confirm.</h1>
-            <p>Review your stylist, service breakdown, date, slot, and total before sending the request.</p>
+            <h1>Choose a time, then continue to secure payment.</h1>
+            <p>Review your stylist, service breakdown, date, slot, and total before reserving the appointment.</p>
+            <div className="booking-progress">
+              <span className="complete">Stylist</span>
+              <span className="complete">Services</span>
+              <span className={selectedSlot ? 'complete' : 'active'}>Slot</span>
+              <span>Payment</span>
+            </div>
 
             {successMessage ? <div className="booking-success-banner">{successMessage}</div> : null}
           </div>
@@ -366,6 +370,24 @@ const AppointmentConfirmation = () => {
         <section className="booking-layout">
           <div className="booking-layout__main">
             {/* Address removed for salon booking flow */}
+
+            <article className="booking-timeline-card reveal-up">
+              <div>
+                <span>01</span>
+                <strong>{stylist?.name || 'Stylist selected'}</strong>
+                <em>{branchName}</em>
+              </div>
+              <div>
+                <span>02</span>
+                <strong>{normalizedServices.length} services</strong>
+                <em>{totalDuration}</em>
+              </div>
+              <div>
+                <span>03</span>
+                <strong>{appointmentTime || 'Choose slot'}</strong>
+                <em>{appointmentDate || 'Date pending'}</em>
+              </div>
+            </article>
 
             <article className="booking-card">
               <div className="section-header-row section-header-row--wide">
@@ -435,7 +457,7 @@ const AppointmentConfirmation = () => {
             <article className="booking-summary-card booking-summary-card--mobile mobile-only">
               <div className="booking-summary-card__title">Booking summary</div>
               <PriceSummary serviceCount={normalizedServices.length} totalDuration={totalDuration} totalPrice={totalPrice} appointmentId={appointmentId} />
-              <ConfirmBookingButton loading={saving} onClick={handleConfirmBooking} />
+              <ConfirmBookingButton loading={saving} onClick={handleConfirmBooking} label="Reserve & Pay" loadingLabel="Reserving..." />
             </article>
           </div>
 
@@ -443,7 +465,7 @@ const AppointmentConfirmation = () => {
             <div className="booking-summary-card">
               <div className="booking-summary-card__title">Booking summary</div>
               <PriceSummary serviceCount={normalizedServices.length} totalDuration={totalDuration} totalPrice={totalPrice} appointmentId={appointmentId} />
-              <ConfirmBookingButton loading={saving} onClick={handleConfirmBooking} />
+              <ConfirmBookingButton loading={saving} onClick={handleConfirmBooking} label="Reserve & Pay" loadingLabel="Reserving..." />
             </div>
           </aside>
         </section>
@@ -462,27 +484,6 @@ const AppointmentConfirmation = () => {
         }}
       />
 
-      {bookingCompleteOpen ? (
-        <div className="booking-complete-modal" role="dialog" aria-modal="true" aria-labelledby="booking-complete-title">
-          <div className="booking-complete-modal__card">
-            <div className="booking-complete-modal__icon">✓</div>
-            <h2 id="booking-complete-title">Booking completed</h2>
-            <p>Your appointment request was submitted successfully. Redirecting you to Home...</p>
-            <button
-              type="button"
-              className="continue-button continue-button--wide"
-              onClick={() => {
-                if (redirectTimerRef.current) {
-                  window.clearTimeout(redirectTimerRef.current);
-                }
-                navigate('/', { replace: true });
-              }}
-            >
-              Back to Home
-            </button>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 };

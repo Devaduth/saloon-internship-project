@@ -168,7 +168,7 @@ const StylistList = () => {
   };
 
   return (
-    <div className="site-shell site-shell--subcategories app-shell min-h-screen w-full overflow-x-hidden">
+    <div className="customer-portal site-shell site-shell--subcategories app-shell min-h-screen w-full overflow-x-hidden">
       <TopNavbar active="Categories" onNavigate={(target) => navigate(target)} />
 
       <main className="page-main page-main--subcategory app-container">
@@ -176,7 +176,7 @@ const StylistList = () => {
           <MobileHeader title="Stylists" showBack showMenu centerTitle onBack={() => navigate(-1)} />
         </section>
 
-        <section className="page-hero page-hero--subcategory">
+        <section className="page-hero page-hero--subcategory reveal-up">
           <div className="page-hero__content">
             <div className="page-kicker">Curated professionals</div>
             <h1>Choose your stylist{selectedCategory ? ` for ${selectedCategory}` : ''}.</h1>
@@ -203,7 +203,7 @@ const StylistList = () => {
           </div>
         ) : null}
 
-        <section className="page-section page-section--stylists">
+        <section className="page-section page-section--stylists reveal-up reveal-delay-1">
           <div className="section-header-row section-header-row--wide">
             <div>
               <div className="section-heading section-heading--tight">Available stylists</div>

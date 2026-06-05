@@ -12,7 +12,7 @@ const ServiceSelection = ({ services, selectedServiceIds = [], onToggleService }
   }
 
   return (
-    <div className="service-selection-grid">
+    <div className="service-selection-grid service-selection-grid--services">
       {services.map((service) => (
         <ServiceCard
           key={service.id || service.name}

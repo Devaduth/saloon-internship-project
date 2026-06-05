@@ -17,6 +17,7 @@ const normalizeBooking = (booking = {}) => {
     date: booking.bookingDate || booking.booking_date || '',
     slot: booking.bookingSlot || booking.booking_slot || '',
     status: String(booking.bookingStatus || booking.booking_status || 'PENDING').toUpperCase(),
+    paymentStatus: String(booking.paymentStatus || booking.payment_status || 'NOT_STARTED').toUpperCase(),
     services,
     totalPrice: Number(booking.totalPrice || booking.total_price || 0),
     totalDuration: booking.totalDuration || booking.total_duration || '',
@@ -27,8 +28,8 @@ const normalizeBooking = (booking = {}) => {
 const isPastBooking = (booking) => {
   const dateText = booking.date;
 
-  if (!dateText || booking.status === 'COMPLETED' || booking.status === 'CANCELLED') {
-    return booking.status === 'COMPLETED' || booking.status === 'CANCELLED';
+  if (!dateText || booking.status === 'COMPLETED' || booking.status === 'CANCELLED' || booking.status === 'PAYMENT_FAILED') {
+    return booking.status === 'COMPLETED' || booking.status === 'CANCELLED' || booking.status === 'PAYMENT_FAILED';
   }
 
   const bookingDate = new Date(`${dateText}T23:59:59`);
@@ -64,6 +65,7 @@ const BookingCard = ({ booking }) => {
         <div><span>Slot</span><strong>{booking.slot || 'Time pending'}</strong></div>
         <div><span>Duration</span><strong>{booking.totalDuration || 'Not set'}</strong></div>
         <div><span>Total</span><strong>₹{booking.totalPrice.toLocaleString()}</strong></div>
+        <div><span>Payment</span><strong>{booking.paymentStatus.replace('_', ' ')}</strong></div>
       </div>
 
       <div className="customer-booking-card__services">
@@ -122,7 +124,7 @@ const CustomerBookings = () => {
   const previousBookings = useMemo(() => bookings.filter(isPastBooking), [bookings]);
 
   return (
-    <div className="site-shell site-shell--bookings app-shell min-h-screen w-full overflow-x-hidden">
+    <div className="customer-portal site-shell site-shell--bookings app-shell min-h-screen w-full overflow-x-hidden">
       <TopNavbar active="Bookings" onNavigate={(target) => navigate(target)} />
 
       <main className="page-main page-main--bookings app-container">
@@ -130,7 +132,7 @@ const CustomerBookings = () => {
           <MobileHeader title="Bookings" showBack showMenu centerTitle onBack={() => navigate(-1)} />
         </section>
 
-        <section className="profile-hero">
+        <section className="profile-hero reveal-up">
           <div className="profile-avatar">BK</div>
           <div>
             <div className="page-kicker">Your bookings</div>
@@ -143,7 +145,7 @@ const CustomerBookings = () => {
         {errorMessage ? <div className="admin-alert">{errorMessage}</div> : null}
 
         {!loading && !errorMessage ? (
-          <section className="customer-bookings-layout">
+          <section className="customer-bookings-layout reveal-up reveal-delay-1">
             <article className="profile-card">
               <div className="section-header-row section-header-row--wide">
                 <div>

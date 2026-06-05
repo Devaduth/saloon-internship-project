@@ -4,10 +4,6 @@ import { toast } from 'react-toastify';
 import BottomNavbar from '../components/BottomNavbar';
 import CategoryCard from '../components/CategoryCard';
 import MobileHeader from '../components/MobileHeader';
-import PromoBanner from '../components/PromoBanner';
-import SearchBar from '../components/SearchBar';
-import StylistCard from '../components/StylistCard';
-import VoucherCard from '../components/VoucherCard';
 import TopNavbar from '../components/TopNavbar';
 import { SALON_CATEGORIES } from '../config/appConstants';
 import { getSalons } from '../services/salonService';
@@ -29,6 +25,25 @@ const CATEGORY_META = {
     description: 'Gentle cuts and quick family appointments',
   },
 };
+
+const POPULAR_SERVICES = [
+  { name: 'Signature cut', duration: '45 min', price: 900 },
+  { name: 'Gloss and tone', duration: '75 min', price: 2200 },
+  { name: 'Ritual shave', duration: '30 min', price: 650 },
+];
+
+const TESTIMONIALS = [
+  {
+    result: 'Walked in between meetings and left with the best cut I have had in years.',
+    name: 'Aarav Mehta',
+    role: 'Founder · Studio North',
+  },
+  {
+    result: 'The stylist match felt personal, not random. Booking was calm, fast, and beautifully clear.',
+    name: 'Nisha Rao',
+    role: 'Design Lead · Finora',
+  },
+];
 
 const Home = () => {
   const [selectedCategory, setSelectedCategory] = useState(SALON_CATEGORIES[0]);
@@ -124,7 +139,7 @@ const Home = () => {
   };
 
   return (
-    <div className="site-shell site-shell--home app-shell min-h-screen w-full overflow-x-hidden">
+    <div className="customer-portal site-shell site-shell--home app-shell min-h-screen w-full overflow-x-hidden">
       <TopNavbar active="Home" onNavigate={(target) => navigate(target)} />
 
       <main className="page-main page-main--home app-container">
@@ -132,13 +147,27 @@ const Home = () => {
           <MobileHeader title="Home" showMenu centerTitle />
         </section>
 
-        <section className="page-hero page-hero--full">
+        <section className="page-hero page-hero--full customer-editorial-hero reveal-up">
           <div className="page-hero__content">
             <div className="page-kicker">Premium salon appointments</div>
-            <h1>Book your next salon visit beautifully.</h1>
+            <h1 className="hero-headline hero-headline--stagger">
+              <span className="hero-headline__line">
+                <span className="hero-word" style={{ '--word-index': 0 }}>The</span>
+                <span className="hero-word" style={{ '--word-index': 1 }}>Art</span>
+                <span className="hero-word" style={{ '--word-index': 2 }}>of</span>
+              </span>
+              <span className="hero-headline__line hero-headline__line--italic">
+                <span className="hero-word" style={{ '--word-index': 3 }}>The</span>
+                <span className="hero-word" style={{ '--word-index': 4 }}>Cut</span>
+              </span>
+            </h1>
             <p>
-              Discover trusted stylists, compare services, and reserve a time that fits your day in a calm, polished booking flow.
+              Discover trusted stylists, compare services, and reserve a time that fits your day through a calm salon booking experience.
             </p>
+            <div className="hero-action-row">
+              <button type="button" className="luxury-button" onClick={handleSelectStylist}>Book appointment</button>
+              <button type="button" className="luxury-button luxury-button--ghost" onClick={() => navigate('/bookings')}>View bookings</button>
+            </div>
             <div className="customer-hero__stats">
               <span><strong>{stylists.length || '24+'}</strong> stylists</span>
               <span><strong>4.8</strong> average rating</span>
@@ -146,21 +175,40 @@ const Home = () => {
             </div>
           </div>
 
-          <div className="page-hero__panel">
-            <SearchBar placeholder="Search your stylist" />
-            <PromoBanner />
+          <div className="page-hero__panel live-booking-preview" aria-label="Live booking preview">
+            <div className="live-booking-preview__top">
+              <span>Upcoming Appointment</span>
+              <strong>Today, 4:30 PM</strong>
+            </div>
+            <div className="live-booking-preview__focus">
+              <span>Available Stylists</span>
+              <strong>{featuredStylists.length || stylists.length || 6}</strong>
+              <em>{selectedCategory || 'Women'} specialists ready</em>
+            </div>
+            <div className="live-booking-preview__services">
+              {POPULAR_SERVICES.map((service) => (
+                <div key={service.name}>
+                  <span>{service.name}</span>
+                  <strong>{service.duration}</strong>
+                  <em>₹{service.price.toLocaleString()}</em>
+                </div>
+              ))}
+            </div>
+            <div className="live-booking-preview__slots">
+              {['10:30', '12:15', '14:00', '16:30'].map((slot, index) => (
+                <span key={slot} className={index === 3 ? 'selected' : ''}>{slot}</span>
+              ))}
+            </div>
           </div>
         </section>
 
-        <section className="page-section page-section--categories">
+        <section className="page-section page-section--categories reveal-up reveal-delay-1">
           <div className="section-header-row section-header-row--wide">
             <div>
+              <div className="section-kicker">Our Services</div>
               <div className="section-heading">Choose your experience</div>
               <div className="section-subheading">Start with a category and we will tailor the stylist list.</div>
             </div>
-            <button type="button" className="text-link" onClick={handleSelectStylist}>
-              Select Stylist
-            </button>
           </div>
 
           <div className="category-grid-responsive">
@@ -178,29 +226,65 @@ const Home = () => {
           {!loading && !categories.length ? <div className="empty-state">No services configured yet.</div> : null}
         </section>
 
-        <section className="page-section page-section--voucher">
-          <VoucherCard />
-        </section>
-
-        <section className="page-section page-section--stylists">
+        <section className="page-section page-section--services-home reveal-up reveal-delay-2">
           <div className="section-header-row section-header-row--wide">
             <div>
-              <div className="section-heading section-heading--tight">Featured stylists</div>
-              <div className="section-subheading">Handpicked specialists available for {selectedCategory || 'your'} appointments.</div>
+              <div className="section-kicker">Signature Menu</div>
+              <div className="section-heading">Most requested</div>
+              <div className="section-subheading">A quick look at popular services before you choose a stylist.</div>
             </div>
-            <button type="button" className="text-link" onClick={handleSelectStylist}>
-              View all
-            </button>
           </div>
-
-          <div className="stylist-grid-responsive">
-            {loading ? <div className="loading-state">Loading stylists...</div> : null}
-            {!loading && featuredStylists.length ? featuredStylists.map((stylist) => (
-              <StylistCard key={stylist._id || stylist.id || stylist.name} stylist={stylist} />
-            )) : null}
+          <div className="home-bento-grid">
+            <article>
+              <span>Hair architecture</span>
+              <strong>Precision cut</strong>
+              <em>45 min · ₹900</em>
+            </article>
+            <article className="home-bento-grid__dark">
+              <span>Color studio</span>
+              <strong>Gloss, tone and finish</strong>
+              <em>75 min · ₹2,200</em>
+            </article>
+            <article>
+              <span>Grooming</span>
+              <strong>Beard ritual</strong>
+              <em>30 min · ₹650</em>
+            </article>
           </div>
+        </section>
 
-          {!loading && !featuredStylists.length ? <div className="empty-state">No stylists available yet.</div> : null}
+        <section className="page-section testimonials-section reveal-up reveal-delay-2">
+          <div className="section-header-row section-header-row--wide">
+            <div>
+              <div className="section-kicker">Studio Notes</div>
+              <div className="section-heading">Customer results</div>
+              <div className="section-subheading">Editorial notes from people who booked without calling the salon.</div>
+            </div>
+          </div>
+          <div className="testimonial-grid">
+            {TESTIMONIALS.map((testimonial) => (
+              <blockquote key={testimonial.name} className="testimonial-quote">
+                <p>{testimonial.result}</p>
+                <footer>
+                  <strong>{testimonial.name}</strong>
+                  <span>{testimonial.role}</span>
+                </footer>
+              </blockquote>
+            ))}
+          </div>
+        </section>
+
+        <section className="dark-cta-island reveal-up reveal-delay-3">
+          <div>
+            <span className="page-kicker">Instant booking included</span>
+            <h2>Your next appointment is minutes away.</h2>
+          </div>
+          <button type="button" className="luxury-button luxury-button--light" onClick={handleSelectStylist}>Book appointment</button>
+          <div className="dark-cta-island__signals">
+            <span>No waiting.</span>
+            <span>No calls.</span>
+            <span>Instant booking included.</span>
+          </div>
         </section>
 
         {errorMessage ? <div className="admin-alert">{errorMessage}</div> : null}

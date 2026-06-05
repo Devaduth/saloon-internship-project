@@ -14,3 +14,8 @@ export const updateAppointment = async (appointmentId, payload) => {
   const response = await apiClient.put(`/appointments/${appointmentId}`, payload);
   return response.data;
 };
+
+export const markAppointmentPaymentFailed = async (appointmentId, payload = {}) => {
+  const response = await apiClient.post(`/appointments/${appointmentId}/payment-failed`, payload);
+  return response.data;
+};

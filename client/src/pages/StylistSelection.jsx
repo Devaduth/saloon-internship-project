@@ -163,7 +163,7 @@ const StylistSelection = () => {
   };
 
   return (
-    <div className="site-shell site-shell--selection app-shell min-h-screen w-full overflow-x-hidden">
+    <div className="customer-portal site-shell site-shell--selection app-shell min-h-screen w-full overflow-x-hidden">
       <TopNavbar active="Home" onNavigate={(target) => navigate(target)} />
 
       <main className="page-main page-main--selection app-container">
@@ -171,7 +171,7 @@ const StylistSelection = () => {
           <MobileHeader title="Services" showBack showMenu centerTitle onBack={() => navigate(-1)} />
         </section>
 
-        <section className="page-hero page-hero--selection">
+        <section className="page-hero page-hero--selection reveal-up">
           <div className="page-hero__content">
             <div className="page-kicker">Service selection</div>
             <h1>Build your appointment with {activeStylist?.name || 'your stylist'}.</h1>
@@ -193,9 +193,10 @@ const StylistSelection = () => {
 
         <section className="selection-layout">
           <div className="selection-layout__main">
-            <section className="page-section selection-section">
+            <section className="page-section selection-section reveal-up reveal-delay-1">
               <div className="section-header-row section-header-row--wide">
                 <div>
+                  <div className="section-kicker">Our Services</div>
                   <div className="section-heading">Services</div>
                   <div className="section-subheading">Clear duration and pricing for every selection.</div>
                 </div>
@@ -215,9 +216,10 @@ const StylistSelection = () => {
               />
             </section>
 
-            <section className="page-section selection-section">
+            <section className="page-section selection-section reveal-up reveal-delay-2">
               <div className="section-header-row section-header-row--wide">
                 <div>
+                  <div className="section-kicker">About the Studio</div>
                   <div className="section-heading">Trusted products</div>
                   <div className="section-subheading">Premium care partners used by the salon.</div>
                 </div>
@@ -230,9 +232,10 @@ const StylistSelection = () => {
               </div>
             </section>
 
-            <section className="page-section selection-section">
+            <section className="page-section selection-section reveal-up reveal-delay-3">
               <div className="section-header-row section-header-row--wide">
                 <div>
+                  <div className="section-kicker">Your Appointment</div>
                   <div className="section-heading">Booking summary</div>
                   <div className="section-subheading">Your stylist was selected on the previous screen</div>
                 </div>
