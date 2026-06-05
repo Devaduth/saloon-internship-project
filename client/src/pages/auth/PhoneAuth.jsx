@@ -276,7 +276,7 @@ const PhoneAuth = () => {
                     ))}
                   </div>
 
-                  {devOtp ? <div className="auth-alert auth-alert--success">Dev OTP: {devOtp}</div> : <div className="auth-alert auth-alert--success">Dev OTP: {devOtp}</div> }
+                  <div className="auth-alert auth-alert--success">Dev OTP: {devOtp}</div>
 
                   {error ? <div className="auth-alert auth-alert--error">{error}</div> : null}
 
